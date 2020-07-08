@@ -91,7 +91,7 @@ func sendMsgPostPrice() {
 	)
 
 	// helper methods for transactions
-	cdc := app.MakeCodec() // make codec for the app
+	_, cdc := app.MakeCodec() // make codec for the app
 
 	// get the keybase
 	keybase := getKeybase()
@@ -124,7 +124,7 @@ func sendBtcCdp() {
 	)
 
 	// helper methods for transactions
-	cdc := app.MakeCodec() // make codec for the app
+	_, cdc := app.MakeCodec() // make codec for the app
 
 	// get the keybase
 	keybase := getKeybase()
@@ -157,7 +157,7 @@ func sendXrpCdp() {
 	)
 
 	// helper methods for transactions
-	cdc := app.MakeCodec() // make codec for the app
+	_, cdc := app.MakeCodec() // make codec for the app
 
 	// get the keybase
 	keybase := getKeybase()
@@ -190,7 +190,7 @@ func sendProposal() {
 	)
 
 	// helper methods for transactions
-	cdc := app.MakeCodec() // make codec for the app
+	_, cdc := app.MakeCodec() // make codec for the app
 
 	// get the keybase
 	keybase := getKeybase()
@@ -216,7 +216,7 @@ func sendDeposit() {
 	}
 
 	// helper methods for transactions
-	cdc := app.MakeCodec() // make codec for the app
+	_, cdc := app.MakeCodec() // make codec for the app
 
 	// get the keybase
 	keybase := getKeybase()
@@ -244,7 +244,7 @@ func sendVote() {
 	}
 
 	// helper methods for transactions
-	cdc := app.MakeCodec() // make codec for the app
+	_, cdc := app.MakeCodec() // make codec for the app
 
 	// get the keybase
 	keybase := getKeybase()
@@ -278,7 +278,7 @@ func sendCoins() {
 	}
 
 	// helper methods for transactions
-	cdc := app.MakeCodec() // make codec for the app
+	_, cdc := app.MakeCodec() // make codec for the app
 
 	// get the keybase
 	keybase := getKeybase()
@@ -321,7 +321,7 @@ func sendDelegation() {
 	}
 
 	// helper methods for transactions
-	cdc := app.MakeCodec() // make codec for the app
+	_, cdc := app.MakeCodec() // make codec for the app
 
 	// get the keybase
 	keybase := getKeybase()
@@ -354,7 +354,7 @@ func sendUndelegation() {
 	}
 
 	// helper methods for transactions
-	cdc := app.MakeCodec() // make codec for the app
+	_, cdc := app.MakeCodec() // make codec for the app
 
 	// get the keybase
 	keybase := getKeybase()
@@ -375,7 +375,7 @@ func sendUndelegation() {
 
 }
 
-func getKeybase() crkeys.Keybase {
+func getKeybase() crkeys.Keyring {
 
 	if keybase != nil {
 		return keybase
@@ -386,8 +386,7 @@ func getKeybase() crkeys.Keybase {
 	// myKeybase, err := keys.NewKeyBaseFromDir("/tmp/kvcliHome")
 
 	inBuf := strings.NewReader("")
-	keybase, err := crkeys.NewKeyring(sdk.KeyringServiceName(),
-		"test", "/tmp/kvcliHome", inBuf)
+	keybase, err := crkeys.New(sdk.KeyringServiceName(), "test", "/tmp/kvcliHome", inBuf)
 
 	if err != nil {
 		panic(err)

@@ -56,7 +56,7 @@ func main() {
 
 	rootCmd.AddCommand(
 		genutilcli.InitCmd(ctx, cdc, app.ModuleBasics, app.DefaultNodeHome),
-		genutilcli.CollectGenTxsCmd(ctx, cdc, banktypes.GenesisBalancetIterator{}, app.DefaultNodeHome),
+		genutilcli.CollectGenTxsCmd(ctx, cdc, banktypes.GenesisBalancesIterator{}, app.DefaultNodeHome),
 		migrate.MigrateGenesisCmd(ctx, cdc),
 		writeParamsAndConfigCmd(cdc),
 		genutilcli.GenTxCmd(
@@ -69,7 +69,7 @@ func main() {
 			app.DefaultCLIHome),
 		genutilcli.ValidateGenesisCmd(ctx, cdc, app.ModuleBasics),
 		AddGenesisAccountCmd(ctx, cdc, appCodec, app.DefaultNodeHome, app.DefaultCLIHome),
-		testnetCmd(ctx, cdc, app.ModuleBasics, banktypes.GenesisBalancetIterator{}),
+		testnetCmd(ctx, cdc, app.ModuleBasics, banktypes.GenesisBalancesIterator{}),
 		flags.NewCompletionCmd(rootCmd, true),
 		debug.Cmd(cdc),
 	)
