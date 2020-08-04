@@ -78,7 +78,7 @@ func SimulateMsgClaimReward(ak auth.AccountKeeper, sk types.SupplyKeeper, k keep
 		claimer, claim, found := findValidAccountClaimPair(accs, openClaims, func(acc simulation.Account, claim types.Claim) bool {
 			if validAccounts[acc.Address.String()] { // Address must be valid type
 				if claim.Owner.Equals(acc.Address) { // Account must be claim owner
-					allClaims, found := k.GetClaimsByAddressAndDenom(ctx, claim.Owner, claim.Denom)
+					allClaims, found := k.GetClaimsWithClaimPeriodByAddressAndDenom(ctx, claim.Owner, claim.Denom)
 					if found { // found should always be true
 						var rewards sdk.Coins
 						for _, individualClaim := range allClaims {

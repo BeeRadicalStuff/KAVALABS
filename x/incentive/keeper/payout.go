@@ -115,8 +115,8 @@ func (k Keeper) DeleteExpiredClaimsAndClaimPeriods(ctx sdk.Context) {
 	})
 }
 
-// GetClaimsByAddressAndDenom returns all claims for a specific user and address and a bool for if any were found
-func (k Keeper) GetClaimsByAddressAndDenom(ctx sdk.Context, addr sdk.AccAddress, denom string) (claims types.Claims, found bool) {
+// GetClaimsWithClaimPeriodByAddressAndDenom returns claims that have a corresponding claim period for a specific user and address and a bool for if any were found
+func (k Keeper) GetClaimsWithClaimPeriodByAddressAndDenom(ctx sdk.Context, addr sdk.AccAddress, denom string) (claims types.Claims, found bool) {
 	found = false
 	k.IterateClaimPeriods(ctx, func(cp types.ClaimPeriod) (stop bool) {
 		if cp.Denom != denom {
@@ -130,6 +130,33 @@ func (k Keeper) GetClaimsByAddressAndDenom(ctx sdk.Context, addr sdk.AccAddress,
 		claims = append(claims, c)
 		return false
 	})
+	return claims, found
+}
+
+// GetAllClaimsByAddressAndDenom returns all claims for a specific user and address and a bool for if any were found
+func (k Keeper) GetAllClaimsByAddressAndDenom(ctx sdk.Context, addr sdk.AccAddress, denom string) (claims types.Claims, found bool) {
+	found = false
+	k.IterateClaimPeriods(ctx, func(cp types.ClaimPeriod) (stop bool) {
+		if cp.Denom != denom {
+			return false
+		}
+		claim, hasClaim := k.GetClaim(ctx, addr, cp.Denom, cp.ID)
+		if !hasClaim {
+			return false
+		}
+		found = true
+		claims = append(claims, claim)
+		return false
+	})
+	id := k.GetNextClaimPeriodID(ctx, denom)
+	_, hasClaimPeriod := k.GetClaimPeriod(ctx, id, denom)
+	if !hasClaimPeriod {
+		latestClaim, hasClaim := k.GetClaim(ctx, addr, denom, id)
+		if hasClaim {
+			claims = append(claims, latestClaim)
+			found = true
+		}
+	}
 	return claims, found
 }
 

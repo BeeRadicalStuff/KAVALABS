@@ -73,7 +73,7 @@ func queryGetClaims(ctx sdk.Context, req abci.RequestQuery, k Keeper) ([]byte, e
 	if err != nil {
 		return nil, sdkerrors.Wrap(sdkerrors.ErrJSONUnmarshal, err.Error())
 	}
-	claims, _ := k.GetClaimsByAddressAndDenom(ctx, requestParams.Owner, requestParams.Denom)
+	claims, _ := k.GetAllClaimsByAddressAndDenom(ctx, requestParams.Owner, requestParams.Denom)
 
 	bz, err := codec.MarshalJSONIndent(k.cdc, claims)
 	if err != nil {

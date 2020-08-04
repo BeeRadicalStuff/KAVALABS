@@ -24,7 +24,7 @@ func NewHandler(k keeper.Keeper) sdk.Handler {
 
 func handleMsgClaimReward(ctx sdk.Context, k keeper.Keeper, msg types.MsgClaimReward) (*sdk.Result, error) {
 
-	claims, found := k.GetClaimsByAddressAndDenom(ctx, msg.Sender, msg.Denom)
+	claims, found := k.GetClaimsWithClaimPeriodByAddressAndDenom(ctx, msg.Sender, msg.Denom)
 	if !found {
 		return nil, sdkerrors.Wrapf(types.ErrNoClaimsFound, "address: %s, denom: %s", msg.Sender, msg.Denom)
 	}
