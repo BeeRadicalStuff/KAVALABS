@@ -1,6 +1,8 @@
 package keeper
 
 import (
+	"fmt"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/auth"
@@ -34,6 +36,7 @@ func (k Keeper) PayoutClaim(ctx sdk.Context, addr sdk.AccAddress, collateralType
 			types.EventTypeClaim,
 			sdk.NewAttribute(types.AttributeKeyClaimedBy, addr.String()),
 			sdk.NewAttribute(types.AttributeKeyClaimAmount, claim.Reward.String()),
+			sdk.NewAttribute(types.AttributeKeyClaimPeriod, fmt.Sprintf("%d", claim.ClaimPeriodID)),
 		),
 	)
 	return nil
@@ -167,11 +170,11 @@ func (k Keeper) addCoinsToVestingSchedule(ctx sdk.Context, addr sdk.AccAddress, 
 	}
 
 	// logic for inserting a new vesting period into the existing vesting schedule
-	totalPeriodLength := types.GetTotalVestingPeriodLength(vacc.VestingPeriods)
+	remainingLength := vacc.EndTime - ctx.BlockTime().Unix()
 	proposedEndTime := ctx.BlockTime().Unix() + length
-	if totalPeriodLength < length {
-		// in the case that the proposed length is longer than the sum of all previous period lengths, create a new period with length equal to the difference between the proposed length and the previous total length
-		newPeriodLength := length - totalPeriodLength
+	if remainingLength < length {
+		// in the case that the proposed length is longer than the remaining length of all vesting periods, create a new period with length equal to the difference between the proposed length and the previous total length
+		newPeriodLength := length - remainingLength
 		newPeriod := types.NewPeriod(amt, newPeriodLength)
 		vacc.VestingPeriods = append(vacc.VestingPeriods, newPeriod)
 		// update the end time so that the sum of all period lengths equals endTime - startTime
