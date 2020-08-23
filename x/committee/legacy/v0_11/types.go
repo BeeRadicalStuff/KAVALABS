@@ -615,17 +615,19 @@ func (aaps AllowedAssetParams) Allows(current, incoming bep3types.AssetParams) b
 }
 
 type AllowedAssetParam struct {
-	Denom  string `json:"denom" yaml:"denom"`
-	CoinID bool   `json:"coin_id" yaml:"coin_id"`
-	Limit  bool   `json:"limit" yaml:"limit"`
-	Active bool   `json:"active" yaml:"active"`
+	Denom         string `json:"denom" yaml:"denom"`
+	CoinID        bool   `json:"coin_id" yaml:"coin_id"`
+	Limit         bool   `json:"limit" yaml:"limit"`
+	Active        bool   `json:"active" yaml:"active"`
+	MaxSwapAmount bool   `json:"max_swap_amount" yaml:"max_swap_amount"`
+	MinBlockLock  bool   `json:"min_block_lock" yaml:"min_block_lock"`
 }
 
 func (aap AllowedAssetParam) Allows(current, incoming bep3types.AssetParam) bool {
 
 	allowed := ((aap.Denom == current.Denom) && (aap.Denom == incoming.Denom)) && // require denoms to be all equal
 		((current.CoinID == incoming.CoinID) || aap.CoinID) &&
-		(current.SupplyLimit.Equal(incoming.SupplyLimit) || aap.Limit) &&
+		(current.SupplyLimit.Equals(incoming.SupplyLimit) || aap.Limit) &&
 		((current.Active == incoming.Active) || aap.Active)
 	return allowed
 }

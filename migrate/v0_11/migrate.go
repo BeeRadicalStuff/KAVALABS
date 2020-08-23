@@ -197,10 +197,12 @@ func MigrateCommittee(oldGenState v0_9committee.GenesisState) v0_11committee.Gen
 					}
 					oldAssetParam := subPermission.AllowedAssetParams[0]
 					newAssetParam := v0_11committee.AllowedAssetParam{
-						Active: oldAssetParam.Active,
-						CoinID: oldAssetParam.CoinID,
-						Denom:  oldAssetParam.Denom,
-						Limit:  oldAssetParam.Limit,
+						Active:        oldAssetParam.Active,
+						CoinID:        oldAssetParam.CoinID,
+						Denom:         oldAssetParam.Denom,
+						Limit:         oldAssetParam.Limit,
+						MaxSwapAmount: true,
+						MinBlockLock:  true,
 					}
 					oldMarketParams := subPermission.AllowedMarkets
 					var newMarketParams v0_11committee.AllowedMarkets
