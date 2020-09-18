@@ -579,7 +579,7 @@
             required: true
             type: string
             x-example: kava1ffv7nhd3z6sych2qpqkk03ec6hzkmufy0r2s4c
-        - in: path
+          - in: path
             name: collateral_type
             description: Collateral type
             required: true
@@ -684,9 +684,6 @@
                 debt_auction_threshold:
                   type: string
                   example: '1000000000'
-                surplus_auction_lot:
-                  type: string
-                  example: '10000000'
                 savings_distribution_frequency:
                   type: string
                   example: '60000000'
@@ -833,6 +830,8 @@
         responses:
           200:
             description: The distributed savings rate
+            schema:
+              type: object
               properties:
                 height:
                   type: string
@@ -875,21 +874,21 @@
             required: false
             type: string
             x-example: "2.75"
-        responses:
-          200:
-            description: Query cdps
-            schema:
-              type: object
-              properties:
-                height:
-                  type: string
-                  example: "100"
-                result:
-                  type: array
-                  items:
-                    $ref: '#/definitions/CdpResponse'
-          500:
-            description: Internal Server Error
+      responses:
+        200:
+          description: Query cdps
+          schema:
+            type: object
+            properties:
+              height:
+                type: string
+                example: "100"
+              result:
+                type: array
+                items:
+                  $ref: '#/definitions/CdpResponse'
+        500:
+          description: Internal Server Error
     /bep3/swap/create:
       post:
         summary: Generate a create atomic swap transaction
