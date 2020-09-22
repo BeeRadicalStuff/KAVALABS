@@ -42,7 +42,7 @@ func getCmdDeposit(cdc *codec.Codec) *cobra.Command {
 	return &cobra.Command{
 		Use:   "deposit [amount] [deposit-type]",
 		Short: "deposit coins to harvest",
-		Args:  cobra.ExactArgs(3),
+		Args:  cobra.ExactArgs(2),
 		Example: fmt.Sprintf(
 			`%s tx %s deposit 10000000bnb lp --from <key>`, version.ClientName, types.ModuleName,
 		),
@@ -67,7 +67,7 @@ func getCmdWithdraw(cdc *codec.Codec) *cobra.Command {
 	return &cobra.Command{
 		Use:   "withdraw [amount] [deposit-type]",
 		Short: "withdraw coins from harvest",
-		Args:  cobra.ExactArgs(3),
+		Args:  cobra.ExactArgs(2),
 		Example: fmt.Sprintf(
 			`%s tx %s withdraw 10000000bnb lp --from <key>`, version.ClientName, types.ModuleName,
 		),
@@ -104,11 +104,11 @@ func getCmdClaimReward(cdc *codec.Codec) *cobra.Command {
 			inBuf := bufio.NewReader(cmd.InOrStdin())
 			cliCtx := context.NewCLIContext().WithCodec(cdc)
 			txBldr := auth.NewTxBuilderFromCLI(inBuf).WithTxEncoder(utils.GetTxEncoder(cdc))
-			receiver, err := sdk.AccAddressFromBech32(args[1])
+			receiver, err := sdk.AccAddressFromBech32(args[0])
 			if err != nil {
 				return err
 			}
-			msg := types.NewMsgClaimReward(cliCtx.GetFromAddress(), receiver, args[2], args[3], args[4])
+			msg := types.NewMsgClaimReward(cliCtx.GetFromAddress(), receiver, args[1], args[2], args[3])
 			if err := msg.ValidateBasic(); err != nil {
 				return err
 			}
