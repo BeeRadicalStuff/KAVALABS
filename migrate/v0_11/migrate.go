@@ -5,8 +5,12 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	v0_11bep3 "github.com/kava-labs/kava/x/bep3/legacy/v0_11"
+	v0_11bep3 "github.com/kava-labs/kava/x/bep3"
 	v0_9bep3 "github.com/kava-labs/kava/x/bep3/legacy/v0_9"
+	v0_11cdp "github.com/kava-labs/kava/x/cdp"
+	v0_9cdp "github.com/kava-labs/kava/x/cdp/legacy/v0_9"
+	v0_11pricefeed "github.com/kava-labs/kava/x/pricefeed"
+	v0_9pricefeed "github.com/kava-labs/kava/x/pricefeed/legacy/v0_9"
 )
 
 // MigrateBep3 migrates from a v0.9 (or v0.10) bep3 genesis state to a v0.11 bep3 genesis state
@@ -16,7 +20,7 @@ func MigrateBep3(oldGenState v0_9bep3.GenesisState) v0_11bep3.GenesisState {
 	v0_9Params := oldGenState.Params
 
 	for _, asset := range v0_9Params.SupportedAssets {
-		v10AssetParam := v0_11bep3.AssetParam{
+		v11AssetParam := v0_11bep3.AssetParam{
 			Active:        asset.Active,
 			Denom:         asset.Denom,
 			CoinID:        asset.CoinID,
@@ -33,7 +37,7 @@ func MigrateBep3(oldGenState v0_9bep3.GenesisState) v0_11bep3.GenesisState {
 				TimeBasedLimit: sdk.ZeroInt(),
 			},
 		}
-		assetParams = append(assetParams, v10AssetParam)
+		assetParams = append(assetParams, v11AssetParam)
 	}
 	for _, supply := range oldGenState.AssetSupplies {
 		newSupply := v0_11bep3.NewAssetSupply(supply.IncomingSupply, supply.OutgoingSupply, supply.CurrentSupply, sdk.NewCoin(supply.CurrentSupply.Denom, sdk.ZeroInt()), time.Duration(0))
@@ -57,11 +61,162 @@ func MigrateBep3(oldGenState v0_9bep3.GenesisState) v0_11bep3.GenesisState {
 		}
 		swaps = append(swaps, newSwap)
 	}
+
+	// -------------- ADD BTCB To BEP3 params --------------------
+	btcbAssetParam := v0_11bep3.NewAssetParam(
+		"btcb",
+		0,
+		v0_11bep3.SupplyLimit{
+			Limit:          sdk.NewInt(10000000000), // 100 BTC limit at launch
+			TimeLimited:    false,
+			TimePeriod:     time.Duration(0),
+			TimeBasedLimit: sdk.ZeroInt()},
+		true,
+		v0_9Params.BnbDeputyAddress, // TODO get an additional deputy address from binance
+		v0_9Params.BnbDeputyFixedFee,
+		sdk.OneInt(),
+		sdk.NewInt(1000000000),
+		220,
+		270,
+	)
+	btcbAssetSupply := v0_11bep3.NewAssetSupply(
+		sdk.NewCoin("btcb", sdk.ZeroInt()),
+		sdk.NewCoin("btcb", sdk.ZeroInt()),
+		sdk.NewCoin("btcb", sdk.ZeroInt()),
+		sdk.NewCoin("btcb", sdk.ZeroInt()),
+		time.Duration(0))
+	assetParams = append(assetParams, btcbAssetParam)
+	assetSupplies = append(assetSupplies, btcbAssetSupply)
+	xrpbAssetParam := v0_11bep3.NewAssetParam(
+		"xrpb",
+		144,
+		v0_11bep3.SupplyLimit{
+			Limit:          sdk.NewInt(1000000000000), // 1,000,000 XRP limit at launch
+			TimeLimited:    false,
+			TimePeriod:     time.Duration(0),
+			TimeBasedLimit: sdk.ZeroInt()},
+		true,
+		v0_9Params.BnbDeputyAddress, // TODO  get an additional deputy address from binance
+		v0_9Params.BnbDeputyFixedFee,
+		sdk.OneInt(),
+		sdk.NewInt(100000000000),
+		220,
+		270,
+	)
+	xrpbAssetSupply := v0_11bep3.NewAssetSupply(
+		sdk.NewCoin("xrpb", sdk.ZeroInt()),
+		sdk.NewCoin("xrpb", sdk.ZeroInt()),
+		sdk.NewCoin("xrpb", sdk.ZeroInt()),
+		sdk.NewCoin("xrpb", sdk.ZeroInt()),
+		time.Duration(0))
+	assetParams = append(assetParams, xrpbAssetParam)
+	assetSupplies = append(assetSupplies, xrpbAssetSupply)
+	busdAssetParam := v0_11bep3.NewAssetParam(
+		"busd",
+		727, // note - no official SLIP 44 ID
+		v0_11bep3.SupplyLimit{
+			Limit:          sdk.NewInt(10000000000000), // 100,000 BUSD limit at launch
+			TimeLimited:    false,
+			TimePeriod:     time.Duration(0),
+			TimeBasedLimit: sdk.ZeroInt()},
+		true,
+		v0_9Params.BnbDeputyAddress, // TODO  get an additional deputy address from binance
+		v0_9Params.BnbDeputyFixedFee,
+		sdk.OneInt(),
+		sdk.NewInt(1000000000000),
+		220,
+		270,
+	)
+	busdAssetSupply := v0_11bep3.NewAssetSupply(
+		sdk.NewCoin("busd", sdk.ZeroInt()),
+		sdk.NewCoin("busd", sdk.ZeroInt()),
+		sdk.NewCoin("busd", sdk.ZeroInt()),
+		sdk.NewCoin("busd", sdk.ZeroInt()),
+		time.Duration(0))
+	assetParams = append(assetParams, busdAssetParam)
+	assetSupplies = append(assetSupplies, busdAssetSupply)
 	return v0_11bep3.GenesisState{
-		Params: v0_11bep3.Params{
-			AssetParams: assetParams},
+		Params:            v0_11bep3.NewParams(assetParams),
 		AtomicSwaps:       swaps,
 		Supplies:          assetSupplies,
 		PreviousBlockTime: v0_11bep3.DefaultPreviousBlockTime,
 	}
+}
+
+// MigrateCDP migrates from a v0.9 (or v0.10) cdp genesis state to a v0.11 cdp genesis state
+func MigrateCDP(oldGenState v0_9cdp.GenesisState) v0_11cdp.GenesisState {
+	var newCDPs v0_11cdp.CDPs
+	var newDeposits v0_11cdp.Deposits
+	var newCollateralParams v0_11cdp.CollateralParams
+	newStartingID := uint64(0)
+
+	for _, cdp := range oldGenState.CDPs {
+		newCDP := v0_11cdp.NewCDPWithFees(cdp.ID, cdp.Owner, cdp.Collateral, "bnb-a", cdp.Principal, cdp.AccumulatedFees, cdp.FeesUpdated)
+		newCDPs = append(newCDPs, newCDP)
+		if cdp.ID >= newStartingID {
+			newStartingID = cdp.ID + 1
+		}
+	}
+
+	for _, dep := range oldGenState.Deposits {
+		newDep := v0_11cdp.NewDeposit(dep.CdpID, dep.Depositor, dep.Amount)
+		newDeposits = append(newDeposits, newDep)
+	}
+
+	for _, cp := range oldGenState.Params.CollateralParams {
+		newCollateralParam := v0_11cdp.NewCollateralParam(cp.Denom, "bnb-a", cp.LiquidationRatio, cp.DebtLimit, cp.StabilityFee, cp.AuctionSize, cp.LiquidationPenalty, 0x01, cp.SpotMarketID, cp.LiquidationMarketID, cp.ConversionFactor)
+		newCollateralParams = append(newCollateralParams, newCollateralParam)
+	}
+	btcbCollateralParam := v0_11cdp.NewCollateralParam("btcb", "btcb-a", sdk.MustNewDecFromStr("1.5"), sdk.NewCoin("usdx", sdk.NewInt(100000000000)), sdk.MustNewDecFromStr("1.000000001547125958"), sdk.NewInt(100000000), sdk.MustNewDecFromStr("0.075000000000000000"), 0x02, "btc:usd", "btc:usd:30", sdk.NewInt(8))
+	busdaCollateralParam := v0_11cdp.NewCollateralParam("busd", "busd-a", sdk.MustNewDecFromStr("1.01"), sdk.NewCoin("usdx", sdk.NewInt(3000000000000)), sdk.OneDec(), sdk.NewInt(1000000000000), sdk.MustNewDecFromStr("0.075000000000000000"), 0x03, "busd:usd", "busd:usd:30", sdk.NewInt(8))
+	busdbCollateralParam := v0_11cdp.NewCollateralParam("busd", "busd-b", sdk.MustNewDecFromStr("1.1"), sdk.NewCoin("usdx", sdk.NewInt(1000000000000)), sdk.MustNewDecFromStr("1.000000012857214317"), sdk.NewInt(1000000000000), sdk.MustNewDecFromStr("0.075000000000000000"), 0x04, "busd:usd", "busd:usd:30", sdk.NewInt(8))
+	xrpbCollateralParam := v0_11cdp.NewCollateralParam("xrpb", "xrpb-a", sdk.MustNewDecFromStr("1.5"), sdk.NewCoin("usdx", sdk.NewInt(100000000000)), sdk.MustNewDecFromStr("1.000000001547125958"), sdk.NewInt(100000000000), sdk.MustNewDecFromStr("0.075000000000000000"), 0x05, "xrp:usd", "xrp:usd:30", sdk.NewInt(8))
+	newCollateralParams = append(newCollateralParams, btcbCollateralParam, busdaCollateralParam, busdbCollateralParam, xrpbCollateralParam)
+	oldDebtParam := oldGenState.Params.DebtParam
+
+	newDebtParam := v0_11cdp.NewDebtParam(oldDebtParam.Denom, oldDebtParam.ReferenceAsset, oldDebtParam.ConversionFactor, oldDebtParam.DebtFloor, oldDebtParam.SavingsRate)
+
+	newGlobalDebtLimit := oldGenState.Params.GlobalDebtLimit.Add(btcbCollateralParam.DebtLimit).Add(busdaCollateralParam.DebtLimit).Add(busdbCollateralParam.DebtLimit).Add(xrpbCollateralParam.DebtLimit)
+
+	newParams := v0_11cdp.NewParams(newGlobalDebtLimit, newCollateralParams, newDebtParam, oldGenState.Params.SurplusAuctionThreshold, oldGenState.Params.SurplusAuctionLot, oldGenState.Params.DebtAuctionThreshold, oldGenState.Params.DebtAuctionLot, oldGenState.Params.SavingsDistributionFrequency, false)
+
+	return v0_11cdp.NewGenesisState(
+		newParams,
+		newCDPs,
+		newDeposits,
+		newStartingID,
+		oldGenState.DebtDenom,
+		oldGenState.GovDenom,
+		oldGenState.PreviousDistributionTime,
+		sdk.ZeroInt(),
+	)
+}
+
+// MigratePricefeed migrates from a v0.9 (or v0.10) pricefeed genesis state to a v0.11 pricefeed genesis state
+func MigratePricefeed(oldGenState v0_9pricefeed.GenesisState) v0_11pricefeed.GenesisState {
+	var newMarkets v0_11pricefeed.Markets
+	var newPostedPrices v0_11pricefeed.PostedPrices
+	var oracles []sdk.AccAddress
+
+	for _, market := range oldGenState.Params.Markets {
+		newMarket := v0_11pricefeed.NewMarket(market.MarketID, market.BaseAsset, market.QuoteAsset, market.Oracles, market.Active)
+		newMarkets = append(newMarkets, newMarket)
+		oracles = market.Oracles
+	}
+	// ------- add btc, xrp, busd markets --------
+	btcSpotMarket := v0_11pricefeed.NewMarket("btc:usd", "btc", "usd", oracles, true)
+	btcLiquidationMarket := v0_11pricefeed.NewMarket("btc:usd:30", "btc", "usd", oracles, true)
+	xrpSpotMarket := v0_11pricefeed.NewMarket("xrp:usd", "xrp", "usd", oracles, true)
+	xrpLiquidationMarket := v0_11pricefeed.NewMarket("xrp:usd:30", "xrp", "usd", oracles, true)
+	busdSpotMarket := v0_11pricefeed.NewMarket("busd:usd", "busd", "usd", oracles, true)
+	busdLiquidationMarket := v0_11pricefeed.NewMarket("busd:usd:30", "busd", "usd", oracles, true)
+	newMarkets = append(newMarkets, btcSpotMarket, btcLiquidationMarket, xrpSpotMarket, xrpLiquidationMarket, busdSpotMarket, busdLiquidationMarket)
+
+	for _, price := range oldGenState.PostedPrices {
+		newPrice := v0_11pricefeed.NewPostedPrice(price.MarketID, price.OracleAddress, price.Price, price.Expiry)
+		newPostedPrices = append(newPostedPrices, newPrice)
+	}
+	newParams := v0_11pricefeed.NewParams(newMarkets)
+
+	return v0_11pricefeed.NewGenesisState(newParams, newPostedPrices)
 }
