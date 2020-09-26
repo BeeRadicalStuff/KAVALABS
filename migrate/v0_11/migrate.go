@@ -4,12 +4,18 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	v39_1auth "github.com/cosmos/cosmos-sdk/x/auth"
 	v39_1authexported "github.com/cosmos/cosmos-sdk/x/auth/exported"
 	v39_1vesting "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
+	v39_genutil "github.com/cosmos/cosmos-sdk/x/genutil"
 	v39_1supply "github.com/cosmos/cosmos-sdk/x/supply"
 
+	cryptoAmino "github.com/tendermint/tendermint/crypto/encoding/amino"
+	tmtypes "github.com/tendermint/tendermint/types"
+
+	"github.com/kava-labs/kava/app"
 	v38_5auth "github.com/kava-labs/kava/migrate/v0_11/legacy/cosmos-sdk/v0.38.5/auth"
 	v38_5supply "github.com/kava-labs/kava/migrate/v0_11/legacy/cosmos-sdk/v0.38.5/supply"
 	v0_11bep3 "github.com/kava-labs/kava/x/bep3"
@@ -21,11 +27,101 @@ import (
 	v0_11harvest "github.com/kava-labs/kava/x/harvest"
 	v0_11incentive "github.com/kava-labs/kava/x/incentive"
 	v0_9incentive "github.com/kava-labs/kava/x/incentive/legacy/v0_9"
+	v0_11issuance "github.com/kava-labs/kava/x/issuance"
 	v0_11pricefeed "github.com/kava-labs/kava/x/pricefeed"
 	v0_9pricefeed "github.com/kava-labs/kava/x/pricefeed/legacy/v0_9"
 	v0_11validator_vesting "github.com/kava-labs/kava/x/validator-vesting"
 	v0_9validator_vesting "github.com/kava-labs/kava/x/validator-vesting/legacy/v0_9"
 )
+
+var deputyBnbBalance sdk.Coin
+
+// Migrate translates a genesis file from kava v0.9 (or v0.10) format to kava v0.11.x format.
+func Migrate(genDoc tmtypes.GenesisDoc) tmtypes.GenesisDoc {
+	// migrate app state
+	var appStateMap v39_genutil.AppMap
+	cdc := codec.New()
+	cryptoAmino.RegisterAmino(cdc)
+	tmtypes.RegisterEvidences(cdc)
+
+	if err := cdc.UnmarshalJSON(genDoc.AppState, &appStateMap); err != nil {
+		panic(err)
+	}
+	newAppState := MigrateAppState(appStateMap)
+	v0_11Codec := app.MakeCodec()
+	marshaledNewAppState, err := v0_11Codec.MarshalJSON(newAppState)
+	if err != nil {
+		panic(err)
+	}
+	genDoc.AppState = marshaledNewAppState
+	genDoc.GenesisTime = time.Date(2020, 10, 15, 14, 0, 0, 0, time.UTC)
+	genDoc.ChainID = "kava-4"
+	return genDoc
+}
+
+// MigrateAppState migrates application state from v0.9 (or v0.10) format to a kava v0.11.x format
+func MigrateAppState(v0_9AppState v39_genutil.AppMap) v39_genutil.AppMap {
+	v0_11AppState := v0_9AppState
+	v0_11Codec := app.MakeCodec()
+	if v0_9AppState[v38_5auth.ModuleName] != nil {
+		v0_9cdc := codec.New()
+		codec.RegisterCrypto(v0_9cdc)
+		v38_5auth.RegisterCodec(v0_9cdc)
+		v38_5auth.RegisterCodecVesting(v0_9cdc)
+		v38_5supply.RegisterCodec(v0_9cdc)
+		v0_9validator_vesting.RegisterCodec(v0_9cdc)
+		var authGenState v38_5auth.GenesisState
+		v0_9cdc.MustUnmarshalJSON(v0_9AppState[v38_5auth.ModuleName], &authGenState)
+		delete(v0_9AppState, v38_5auth.ModuleName)
+		newAuthGS := MigrateAuth(authGenState)
+		v0_11AppState[v39_1auth.ModuleName] = v0_11Codec.MustMarshalJSON(newAuthGS)
+	}
+	if v0_9AppState[v39_1supply.ModuleName] != nil {
+		var supplyGenstate v39_1supply.GenesisState
+		v0_11Codec.MustUnmarshalJSON(v0_9AppState[v39_1supply.ModuleName], &supplyGenstate)
+		delete(v0_9AppState, v39_1supply.ModuleName)
+		v0_11AppState[v39_1supply.ModuleName] = v0_11Codec.MustMarshalJSON(
+			MigrateSupply(
+				supplyGenstate, deputyBnbBalance, sdk.NewCoin("hard", sdk.NewInt(120000000000000))))
+
+	}
+	if v0_9AppState[v0_9bep3.ModuleName] != nil {
+		var bep3GenState v0_9bep3.GenesisState
+		v0_11Codec.MustUnmarshalJSON(v0_9AppState[v0_9bep3.ModuleName], &bep3GenState)
+		delete(v0_9AppState, v0_9bep3.ModuleName)
+		v0_11AppState[v0_9bep3.ModuleName] = v0_11Codec.MustMarshalJSON(MigrateBep3(bep3GenState))
+	}
+	if v0_9AppState[v0_9cdp.ModuleName] != nil {
+		var cdpGenState v0_9cdp.GenesisState
+		v0_11Codec.MustUnmarshalJSON(v0_9AppState[v0_9cdp.ModuleName], &cdpGenState)
+		delete(v0_9AppState, v0_9cdp.ModuleName)
+		v0_11AppState[v0_9cdp.ModuleName] = v0_11Codec.MustMarshalJSON(MigrateCDP(cdpGenState))
+	}
+	if v0_9AppState[v0_9incentive.ModuleName] != nil {
+		var incentiveGenState v0_9incentive.GenesisState
+		v0_11Codec.MustUnmarshalJSON(v0_9AppState[v0_9incentive.ModuleName], &incentiveGenState)
+		delete(v0_9AppState, v0_9incentive.ModuleName)
+		v0_11AppState[v0_9incentive.ModuleName] = v0_11Codec.MustMarshalJSON(MigrateIncentive(incentiveGenState))
+	}
+	if v0_9AppState[v0_9committee.ModuleName] != nil {
+		var committeeGenState v0_9committee.GenesisState
+		cdc := codec.New()
+		sdk.RegisterCodec(cdc)
+		v0_9committee.RegisterCodec(cdc)
+		cdc.MustUnmarshalJSON(v0_9AppState[v0_9committee.ModuleName], &committeeGenState)
+		delete(v0_9AppState, v0_9committee.ModuleName)
+		v0_11AppState[v0_9committee.ModuleName] = v0_11Codec.MustMarshalJSON(MigrateCommittee(committeeGenState))
+	}
+	if v0_9AppState[v0_9pricefeed.ModuleName] != nil {
+		var pricefeedGenState v0_9pricefeed.GenesisState
+		v0_11Codec.MustUnmarshalJSON(v0_9AppState[v0_9pricefeed.ModuleName], &pricefeedGenState)
+		delete(v0_9AppState, v0_9pricefeed.ModuleName)
+		v0_11AppState[v0_9pricefeed.ModuleName] = v0_11Codec.MustMarshalJSON(MigratePricefeed(pricefeedGenState))
+	}
+	v0_11AppState[v0_11harvest.ModuleName] = v0_11Codec.MustMarshalJSON(MigrateHarvest())
+	v0_11AppState[v0_11issuance.ModuleName] = v0_11Codec.MustMarshalJSON(v0_11issuance.DefaultGenesisState())
+	return v0_11AppState
+}
 
 // MigrateBep3 migrates from a v0.9 (or v0.10) bep3 genesis state to a v0.11 bep3 genesis state
 func MigrateBep3(oldGenState v0_9bep3.GenesisState) v0_11bep3.GenesisState {
@@ -395,30 +491,30 @@ func MigrateIncentive(oldGenState v0_9incentive.GenesisState) v0_11incentive.Gen
 	newMultiplier := v0_11incentive.NewMultiplier(v0_11incentive.Large, 12, sdk.OneDec())
 
 	for _, oldReward := range oldGenState.Params.Rewards {
-		newReward := v0_11incentive.NewReward(oldReward.Active, oldReward.Denom, oldReward.AvailableRewards, oldReward.Duration, v0_11incentive.Multipliers{newMultiplier}, oldReward.ClaimDuration)
+		newReward := v0_11incentive.NewReward(oldReward.Active, oldReward.Denom+"-a", oldReward.AvailableRewards, oldReward.Duration, v0_11incentive.Multipliers{newMultiplier}, oldReward.ClaimDuration)
 		newRewards = append(newRewards, newReward)
 	}
 	newParams := v0_11incentive.NewParams(true, newRewards)
 
 	for _, oldRewardPeriod := range oldGenState.RewardPeriods {
 
-		newRewardPeriod := v0_11incentive.NewRewardPeriod(oldRewardPeriod.Denom, oldRewardPeriod.Start, oldRewardPeriod.End, oldRewardPeriod.Reward, oldRewardPeriod.ClaimEnd, v0_11incentive.Multipliers{newMultiplier})
+		newRewardPeriod := v0_11incentive.NewRewardPeriod(oldRewardPeriod.Denom+"-a", oldRewardPeriod.Start, oldRewardPeriod.End, oldRewardPeriod.Reward, oldRewardPeriod.ClaimEnd, v0_11incentive.Multipliers{newMultiplier})
 		newRewardPeriods = append(newRewardPeriods, newRewardPeriod)
 	}
 
 	for _, oldClaimPeriod := range oldGenState.ClaimPeriods {
-		newClaimPeriod := v0_11incentive.NewClaimPeriod(oldClaimPeriod.Denom, oldClaimPeriod.ID, oldClaimPeriod.End, v0_11incentive.Multipliers{newMultiplier})
+		newClaimPeriod := v0_11incentive.NewClaimPeriod(oldClaimPeriod.Denom+"-a", oldClaimPeriod.ID, oldClaimPeriod.End, v0_11incentive.Multipliers{newMultiplier})
 		newClaimPeriods = append(newClaimPeriods, newClaimPeriod)
 	}
 
 	for _, oldClaim := range oldGenState.Claims {
-		newClaim := v0_11incentive.NewClaim(oldClaim.Owner, oldClaim.Reward, oldClaim.Denom, oldClaim.ClaimPeriodID)
+		newClaim := v0_11incentive.NewClaim(oldClaim.Owner, oldClaim.Reward, oldClaim.Denom+"-a", oldClaim.ClaimPeriodID)
 		newClaims = append(newClaims, newClaim)
 	}
 
 	for _, oldClaimPeriodID := range oldGenState.NextClaimPeriodIDs {
 		newClaimPeriodID := v0_11incentive.GenesisClaimPeriodID{
-			CollateralType: oldClaimPeriodID.Denom,
+			CollateralType: oldClaimPeriodID.Denom + "-a",
 			ID:             oldClaimPeriodID.ID,
 		}
 		newClaimPeriodIds = append(newClaimPeriodIds, newClaimPeriodID)
@@ -430,11 +526,19 @@ func MigrateIncentive(oldGenState v0_9incentive.GenesisState) v0_11incentive.Gen
 // MigrateAuth migrates from a v0.38.5 auth genesis state to a v0.39.1 auth genesis state
 func MigrateAuth(oldGenState v38_5auth.GenesisState) v39_1auth.GenesisState {
 	var newAccounts v39_1authexported.GenesisAccounts
-
+	deputyAddr, err := sdk.AccAddressFromBech32("kava1r4v2zdhdalfj2ydazallqvrus9fkphmglhn6u6")
+	if err != nil {
+		panic(err)
+	}
 	for _, account := range oldGenState.Accounts {
 		switch acc := account.(type) {
 		case *v38_5auth.BaseAccount:
 			a := v39_1auth.BaseAccount(*acc)
+			// Remove deputy bnb
+			if a.GetAddress().Equals(deputyAddr) {
+				deputyBnbBalance = sdk.NewCoin("bnb", a.GetCoins().AmountOf("bnb"))
+				a.SetCoins(a.GetCoins().Sub(sdk.NewCoins(sdk.NewCoin("bnb", a.GetCoins().AmountOf("bnb")))))
+			}
 			newAccounts = append(newAccounts, v39_1authexported.GenesisAccount(&a))
 
 		case *v38_5auth.BaseVestingAccount:
@@ -553,4 +657,48 @@ func MigrateAuth(oldGenState v38_5auth.GenesisState) v39_1auth.GenesisState {
 	newAccounts = append(newAccounts, v39_1authexported.GenesisAccount(delegatorMacc))
 
 	return v39_1auth.NewGenesisState(v39_1auth.Params(oldGenState.Params), newAccounts)
+}
+
+// MigrateSupply migrates
+func MigrateSupply(oldGenState v39_1supply.GenesisState, deputyBalance sdk.Coin, hardBalance sdk.Coin) v39_1supply.GenesisState {
+	oldGenState.Supply = oldGenState.Supply.Sub(sdk.Coins{deputyBalance}).Add(hardBalance)
+	return oldGenState
+}
+
+// MigrateHarvest initializes the harvest genesis state for kava-4
+func MigrateHarvest() v0_11harvest.GenesisState {
+	// total HARD per second for lps: 634196
+	// HARD per second for delegators: 1268392
+	incentiveGoLiveDate := time.Date(2020, 10, 17, 14, 0, 0, 0, time.UTC)
+	incentiveEndDate := time.Date(2024, 10, 17, 14, 0, 0, 0, time.UTC)
+	claimEndDate := time.Date(2025, 10, 17, 14, 0, 0, 0, time.UTC)
+	harvestGS := v0_11harvest.NewGenesisState(v0_11harvest.NewParams(
+		true,
+		v0_11harvest.DistributionSchedules{
+			v0_11harvest.NewDistributionSchedule(true, "usdx", incentiveGoLiveDate, incentiveEndDate, sdk.NewCoin("hard", sdk.NewInt(253678)), claimEndDate, v0_11harvest.Multipliers{v0_11harvest.NewMultiplier(v0_11harvest.Small, 0, sdk.MustNewDecFromStr("0.33")), v0_11harvest.NewMultiplier(v0_11harvest.Medium, 6, sdk.MustNewDecFromStr("0.5")), v0_11harvest.NewMultiplier(v0_11harvest.Large, 24, sdk.OneDec())}),
+			v0_11harvest.NewDistributionSchedule(true, "hard", incentiveGoLiveDate, incentiveEndDate, sdk.NewCoin("hard", sdk.NewInt(253678)), claimEndDate, v0_11harvest.Multipliers{v0_11harvest.NewMultiplier(v0_11harvest.Small, 0, sdk.MustNewDecFromStr("0.33")), v0_11harvest.NewMultiplier(v0_11harvest.Medium, 6, sdk.MustNewDecFromStr("0.5")), v0_11harvest.NewMultiplier(v0_11harvest.Large, 24, sdk.OneDec())}),
+			v0_11harvest.NewDistributionSchedule(true, "btcb", incentiveGoLiveDate, incentiveEndDate, sdk.NewCoin("hard", sdk.NewInt(63420)), claimEndDate, v0_11harvest.Multipliers{v0_11harvest.NewMultiplier(v0_11harvest.Small, 0, sdk.MustNewDecFromStr("0.33")), v0_11harvest.NewMultiplier(v0_11harvest.Medium, 6, sdk.MustNewDecFromStr("0.5")), v0_11harvest.NewMultiplier(v0_11harvest.Large, 24, sdk.OneDec())}),
+			v0_11harvest.NewDistributionSchedule(true, "ukava", incentiveGoLiveDate, incentiveEndDate, sdk.NewCoin("hard", sdk.NewInt(63420)), claimEndDate, v0_11harvest.Multipliers{v0_11harvest.NewMultiplier(v0_11harvest.Small, 0, sdk.MustNewDecFromStr("0.33")), v0_11harvest.NewMultiplier(v0_11harvest.Medium, 6, sdk.MustNewDecFromStr("0.5")), v0_11harvest.NewMultiplier(v0_11harvest.Large, 24, sdk.OneDec())}),
+		},
+		v0_11harvest.DelegatorDistributionSchedules{v0_11harvest.NewDelegatorDistributionSchedule(
+			v0_11harvest.NewDistributionSchedule(true, "ukava", incentiveGoLiveDate, incentiveEndDate, sdk.NewCoin("hard", sdk.NewInt(1268392)), claimEndDate, v0_11harvest.Multipliers{v0_11harvest.NewMultiplier(v0_11harvest.Small, 0, sdk.MustNewDecFromStr("0.33")), v0_11harvest.NewMultiplier(v0_11harvest.Medium, 6, sdk.MustNewDecFromStr("0.5")), v0_11harvest.NewMultiplier(v0_11harvest.Large, 24, sdk.OneDec())}),
+			time.Hour*24,
+		),
+		},
+	), v0_11harvest.DefaultPreviousBlockTime, v0_11harvest.DefaultDistributionTimes)
+	return harvestGS
+}
+
+func getDeputyBnbBalance(gs v39_1auth.GenesisState) sdk.Coin {
+	deputyAddr, err := sdk.AccAddressFromBech32("kava1r4v2zdhdalfj2ydazallqvrus9fkphmglhn6u6")
+	if err != nil {
+		panic(err)
+	}
+	for _, account := range gs.Accounts {
+		if account.GetAddress().Equals(deputyAddr) {
+			bnbAmount := account.GetCoins().AmountOf("bnb")
+			return sdk.NewCoin("bnb", bnbAmount)
+		}
+	}
+	return sdk.Coin{}
 }
