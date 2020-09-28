@@ -135,6 +135,35 @@ func (tApp TestApp) InitializeFromGenesisStatesWithTime(genTime time.Time, genes
 			Time:          genTime,
 			Validators:    []abci.ValidatorUpdate{},
 			AppStateBytes: stateBytes,
+			ChainId:       "kava-testnet-10000",
+		},
+	)
+	tApp.Commit()
+	tApp.BeginBlock(abci.RequestBeginBlock{Header: abci.Header{Height: tApp.LastBlockHeight() + 1, Time: genTime}})
+	return tApp
+}
+
+// InitializeFromGenesisStatesWithTimeAndChainID calls InitChain on the app using the default genesis state, overwitten with any passed in genesis states and genesis Time
+func (tApp TestApp) InitializeFromGenesisStatesWithTimeAndChainID(genTime time.Time, chainID string, genesisStates ...GenesisState) TestApp {
+	// Create a default genesis state and overwrite with provided values
+	genesisState := NewDefaultGenesisState()
+	for _, state := range genesisStates {
+		for k, v := range state {
+			genesisState[k] = v
+		}
+	}
+
+	// Initialize the chain
+	stateBytes, err := codec.MarshalJSONIndent(tApp.cdc, genesisState)
+	if err != nil {
+		panic(err)
+	}
+	tApp.InitChain(
+		abci.RequestInitChain{
+			Time:          genTime,
+			Validators:    []abci.ValidatorUpdate{},
+			AppStateBytes: stateBytes,
+			ChainId:       chainID,
 		},
 	)
 	tApp.Commit()

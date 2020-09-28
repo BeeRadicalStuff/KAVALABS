@@ -143,10 +143,30 @@ func TestMigrateFull(t *testing.T) {
 	)
 	err = app.ModuleBasics.ValidateGenesis(newAppState)
 	if err != nil {
-		panic(err)
+		require.NoError(t, err)
 	}
 	require.NotPanics(t, func() {
 		// this runs both InitGenesis for all modules (which panic on errors) and runs all invariants
 		tApp.InitializeFromGenesisStatesWithTime(newGenDoc.GenesisTime, app.GenesisState(newAppState))
+	})
+	newGenDoc.SaveAs(filepath.Join("testdata", "kava-4-draft-migration.json"))
+}
+
+func TestValidateTestnet10000(t *testing.T) {
+	genDoc, err := tmtypes.GenesisDocFromFile(
+		"/Users/kjd/go/src/github.com/kava-labs/kava-testnet-deploy/10000/genesis-template.json",
+	)
+	require.NoError(t, err)
+	cdc := app.MakeCodec()
+	var appState genutil.AppMap
+	require.NoError(t,
+		cdc.UnmarshalJSON(genDoc.AppState, &appState),
+	)
+	err = app.ModuleBasics.ValidateGenesis(appState)
+	require.NoError(t, err)
+	tApp := app.NewTestApp()
+	require.NotPanics(t, func() {
+		// this runs both InitGenesis for all modules (which panic on errors) and runs all invariants
+		tApp.InitializeFromGenesisStatesWithTimeAndChainID(genDoc.GenesisTime, genDoc.ChainID, app.GenesisState(appState))
 	})
 }

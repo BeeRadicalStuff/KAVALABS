@@ -10,6 +10,7 @@ import (
 	v39_1authexported "github.com/cosmos/cosmos-sdk/x/auth/exported"
 	v39_1vesting "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	v39_genutil "github.com/cosmos/cosmos-sdk/x/genutil"
+	v39_1gov "github.com/cosmos/cosmos-sdk/x/gov"
 	v39_1supply "github.com/cosmos/cosmos-sdk/x/supply"
 
 	cryptoAmino "github.com/tendermint/tendermint/crypto/encoding/amino"
@@ -83,6 +84,14 @@ func MigrateAppState(v0_9AppState v39_genutil.AppMap) v39_genutil.AppMap {
 		v0_11AppState[v39_1supply.ModuleName] = v0_11Codec.MustMarshalJSON(
 			MigrateSupply(
 				supplyGenstate, deputyBnbBalance, sdk.NewCoin("hard", sdk.NewInt(120000000000000))))
+
+	}
+	if v0_9AppState[v39_1gov.ModuleName] != nil {
+		var govGenstate v39_1gov.GenesisState
+		v0_11Codec.MustUnmarshalJSON(v0_9AppState[v39_1gov.ModuleName], &govGenstate)
+		delete(v0_9AppState, v39_1gov.ModuleName)
+		v0_11AppState[v39_1gov.ModuleName] = v0_11Codec.MustMarshalJSON(
+			MigrateGov(govGenstate))
 
 	}
 	if v0_9AppState[v0_9bep3.ModuleName] != nil {
@@ -388,6 +397,50 @@ func MigrateCommittee(oldGenState v0_9committee.GenesisState) v0_11committee.Gen
 						newMarketParam := v0_11committee.AllowedMarket(oldMarketParam)
 						newMarketParams = append(newMarketParams, newMarketParam)
 					}
+					// add btc, xrp, busd markets to committee
+					btcMarketParam := v0_11committee.AllowedMarket{
+						MarketID:   "btc:usd",
+						BaseAsset:  false,
+						QuoteAsset: false,
+						Oracles:    false,
+						Active:     true,
+					}
+					btc30MarketParam := v0_11committee.AllowedMarket{
+						MarketID:   "btc:usd:30",
+						BaseAsset:  false,
+						QuoteAsset: false,
+						Oracles:    false,
+						Active:     true,
+					}
+					xrpMarketParam := v0_11committee.AllowedMarket{
+						MarketID:   "xrp:usd",
+						BaseAsset:  false,
+						QuoteAsset: false,
+						Oracles:    false,
+						Active:     true,
+					}
+					xrp30MarketParam := v0_11committee.AllowedMarket{
+						MarketID:   "xrp:usd:30",
+						BaseAsset:  false,
+						QuoteAsset: false,
+						Oracles:    false,
+						Active:     true,
+					}
+					busdMarketParam := v0_11committee.AllowedMarket{
+						MarketID:   "busd:usd",
+						BaseAsset:  false,
+						QuoteAsset: false,
+						Oracles:    false,
+						Active:     true,
+					}
+					busd30MarketParam := v0_11committee.AllowedMarket{
+						MarketID:   "busd:usd:30",
+						BaseAsset:  false,
+						QuoteAsset: false,
+						Oracles:    false,
+						Active:     true,
+					}
+					newMarketParams = append(newMarketParams, btcMarketParam, btc30MarketParam, xrpMarketParam, xrp30MarketParam, busdMarketParam, busd30MarketParam)
 					oldAllowedParams := subPermission.AllowedParams
 					var newAllowedParams v0_11committee.AllowedParams
 					for _, oldAllowedParam := range oldAllowedParams {
@@ -526,7 +579,12 @@ func MigrateIncentive(oldGenState v0_9incentive.GenesisState) v0_11incentive.Gen
 // MigrateAuth migrates from a v0.38.5 auth genesis state to a v0.39.1 auth genesis state
 func MigrateAuth(oldGenState v38_5auth.GenesisState) v39_1auth.GenesisState {
 	var newAccounts v39_1authexported.GenesisAccounts
+	deputyBnbBalance = sdk.NewCoin("bnb", sdk.ZeroInt())
 	deputyAddr, err := sdk.AccAddressFromBech32("kava1r4v2zdhdalfj2ydazallqvrus9fkphmglhn6u6")
+	if err != nil {
+		panic(err)
+	}
+	deputyColdAddr, err := sdk.AccAddressFromBech32("kava1qm2u6nyv7kg6awdm46caccgzn5h7mdkde0sue6")
 	if err != nil {
 		panic(err)
 	}
@@ -535,8 +593,8 @@ func MigrateAuth(oldGenState v38_5auth.GenesisState) v39_1auth.GenesisState {
 		case *v38_5auth.BaseAccount:
 			a := v39_1auth.BaseAccount(*acc)
 			// Remove deputy bnb
-			if a.GetAddress().Equals(deputyAddr) {
-				deputyBnbBalance = sdk.NewCoin("bnb", a.GetCoins().AmountOf("bnb"))
+			if a.GetAddress().Equals(deputyAddr) || a.GetAddress().Equals(deputyColdAddr) {
+				deputyBnbBalance = deputyBnbBalance.Add(sdk.NewCoin("bnb", a.GetCoins().AmountOf("bnb")))
 				a.SetCoins(a.GetCoins().Sub(sdk.NewCoins(sdk.NewCoin("bnb", a.GetCoins().AmountOf("bnb")))))
 			}
 			newAccounts = append(newAccounts, v39_1authexported.GenesisAccount(&a))
@@ -662,6 +720,12 @@ func MigrateAuth(oldGenState v38_5auth.GenesisState) v39_1auth.GenesisState {
 // MigrateSupply migrates
 func MigrateSupply(oldGenState v39_1supply.GenesisState, deputyBalance sdk.Coin, hardBalance sdk.Coin) v39_1supply.GenesisState {
 	oldGenState.Supply = oldGenState.Supply.Sub(sdk.Coins{deputyBalance}).Add(hardBalance)
+	return oldGenState
+}
+
+// MigrateSupply migrates
+func MigrateGov(oldGenState v39_1gov.GenesisState) v39_1gov.GenesisState {
+	oldGenState.VotingParams.VotingPeriod = time.Hour * 24 * 7
 	return oldGenState
 }
 
