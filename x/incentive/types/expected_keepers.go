@@ -25,4 +25,5 @@ type CdpKeeper interface {
 type AccountKeeper interface {
 	GetAccount(ctx sdk.Context, addr sdk.AccAddress) authexported.Account
 	SetAccount(ctx sdk.Context, acc authexported.Account)
+	GetNextAccountNumber(ctx sdk.Context) uint64
 }

@@ -22,6 +22,8 @@ func NewQuerier(k Keeper) sdk.Querier {
 			return queryGetRewardPeriods(ctx, req, k)
 		case types.QueryGetClaimPeriods:
 			return queryGetClaimPeriods(ctx, req, k)
+		case types.QueryGetNextAccount:
+			return queryGetNextAccountNumber(ctx, req, k)
 		default:
 			return nil, sdkerrors.Wrapf(sdkerrors.ErrUnknownRequest, "unknown %s query endpoint", types.ModuleName)
 		}
@@ -76,6 +78,15 @@ func queryGetClaims(ctx sdk.Context, req abci.RequestQuery, k Keeper) ([]byte, e
 	claims, _ := k.GetClaimsByAddressAndDenom(ctx, requestParams.Owner, requestParams.Denom)
 
 	bz, err := codec.MarshalJSONIndent(k.cdc, claims)
+	if err != nil {
+		return nil, sdkerrors.Wrap(sdkerrors.ErrJSONMarshal, err.Error())
+	}
+	return bz, nil
+}
+
+func queryGetNextAccountNumber(ctx sdk.Context, req abci.RequestQuery, k Keeper) ([]byte, error) {
+	nextAccountNumber := k.accountKeeper.GetNextAccountNumber(ctx)
+	bz, err := codec.MarshalJSONIndent(k.cdc, nextAccountNumber)
 	if err != nil {
 		return nil, sdkerrors.Wrap(sdkerrors.ErrJSONMarshal, err.Error())
 	}
