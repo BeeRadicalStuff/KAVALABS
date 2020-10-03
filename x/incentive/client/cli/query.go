@@ -27,10 +27,37 @@ func GetQueryCmd(queryRoute string, cdc *codec.Codec) *cobra.Command {
 		queryClaimsCmd(queryRoute, cdc),
 		queryRewardPeriodsCmd(queryRoute, cdc),
 		queryClaimPeriodsCmd(queryRoute, cdc),
+		queryNextAccountCmd(queryRoute, cdc),
 	)...)
 
 	return incentiveQueryCmd
 
+}
+
+func queryNextAccountCmd(queryRoute string, cdc *codec.Codec) *cobra.Command {
+	return &cobra.Command{
+		Use:   "next-account",
+		Short: "get the next account number from the auth keeper",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cliCtx := context.NewCLIContext().WithCodec(cdc)
+
+			// Query
+			route := fmt.Sprintf("custom/%s/%s", queryRoute, types.QueryGetNextAccount)
+			res, height, err := cliCtx.QueryWithData(route, nil)
+			if err != nil {
+				return err
+			}
+			cliCtx = cliCtx.WithHeight(height)
+
+			// Decode and print results
+			var nextAccount uint64
+			if err := cdc.UnmarshalJSON(res, &nextAccount); err != nil {
+				return fmt.Errorf("failed to unmarshal next account number: %w", err)
+			}
+			return cliCtx.PrintOutput(nextAccount)
+		},
+	}
 }
 
 func queryClaimsCmd(queryRoute string, cdc *codec.Codec) *cobra.Command {

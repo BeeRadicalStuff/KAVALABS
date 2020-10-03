@@ -13,6 +13,7 @@ const (
 	QueryGetParams          = "parameters"
 	QueryGetRewardPeriods   = "reward-periods"
 	QueryGetClaimPeriods    = "claim-periods"
+	QueryGetNextAccount     = "next-account"
 )
 
 // QueryClaimsParams params for query /incentive/claims
