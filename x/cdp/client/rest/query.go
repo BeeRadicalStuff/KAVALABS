@@ -20,6 +20,7 @@ func registerQueryRoutes(cliCtx context.CLIContext, r *mux.Router) {
 	r.HandleFunc(fmt.Sprintf("/cdp/cdps/denom/{%s}", types.RestCollateralDenom), queryCdpsHandlerFn(cliCtx)).Methods("GET")
 	r.HandleFunc(fmt.Sprintf("/cdp/cdps/ratio/{%s}/{%s}", types.RestCollateralDenom, types.RestRatio), queryCdpsByRatioHandlerFn(cliCtx)).Methods("GET")
 	r.HandleFunc(fmt.Sprintf("/cdp/cdps/cdp/deposits/{%s}/{%s}", types.RestOwner, types.RestCollateralDenom), queryCdpDepositsHandlerFn(cliCtx)).Methods("GET")
+	r.HandleFunc("/cdp/savingsRateDistTime", getSavingsRateDistTimeHandler(cliCtx)).Methods("GET")
 }
 
 func queryCdpHandlerFn(cliCtx context.CLIContext) http.HandlerFunc {
@@ -184,6 +185,23 @@ func getAccountsHandlerFn(cliCtx context.CLIContext) http.HandlerFunc {
 		}
 
 		res, height, err := cliCtx.QueryWithData(fmt.Sprintf("custom/cdp/%s", types.QueryGetAccounts), nil)
+		cliCtx = cliCtx.WithHeight(height)
+		if err != nil {
+			rest.WriteErrorResponse(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		rest.PostProcessResponse(w, cliCtx, res)
+	}
+}
+func getSavingsRateDistTimeHandler(cliCtx context.CLIContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		cliCtx, ok := rest.ParseQueryHeightOrReturnBadRequest(w, cliCtx, r)
+		if !ok {
+			return
+		}
+
+		res, height, err := cliCtx.QueryWithData(fmt.Sprintf("custom/cdp/%s", types.QueryGetPreviousSavingsDistributionTime), nil)
 		cliCtx = cliCtx.WithHeight(height)
 		if err != nil {
 			rest.WriteErrorResponse(w, http.StatusInternalServerError, err.Error())
