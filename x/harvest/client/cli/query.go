@@ -78,7 +78,6 @@ func queryModAccountsCmd(queryRoute string, cdc *codec.Codec) *cobra.Command {
 		Use:   "accounts",
 		Short: "query harvest module accounts with optional filter",
 		Long: strings.TrimSpace(`Query for all harvest module accounts or a specific account using the name flag:
-
 		Example:
 		$ kvcli q harvest accounts
 		$ kvcli q harvest accounts --name harvest|harvest_delegator_distribution|harvest_lp_distribution`,
@@ -114,11 +113,10 @@ func queryModAccountsCmd(queryRoute string, cdc *codec.Codec) *cobra.Command {
 }
 
 func queryDepositsCmd(queryRoute string, cdc *codec.Codec) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "deposits",
 		Short: "query harvest module deposits with optional filters",
 		Long: strings.TrimSpace(`query for all harvest module deposits or a specific deposit using flags:
-
 		Example:
 		$ kvcli q harvest deposits
 		$ kvcli q harvest deposits --owner kava1l0xsq2z7gqd7yly0g40y5836g0appumark77ny --deposit-type lp --deposit-denom bnb
@@ -174,14 +172,19 @@ func queryDepositsCmd(queryRoute string, cdc *codec.Codec) *cobra.Command {
 			return cliCtx.PrintOutput(deposits)
 		},
 	}
+	cmd.Flags().Int(flags.FlagPage, 1, "pagination page to query for")
+	cmd.Flags().Int(flags.FlagLimit, 100, "pagination limit (max 100)")
+	cmd.Flags().String(flagOwner, "", "(optional) filter for deposits by owner address")
+	cmd.Flags().String(flagDepositDenom, "", "(optional) filter for deposits by denom")
+	cmd.Flags().String(flagDepositType, "", "(optional) filter for deposits by type (lp or staking)")
+	return cmd
 }
 
 func queryClaimsCmd(queryRoute string, cdc *codec.Codec) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "claims",
 		Short: "query harvest module claims with optional filters",
 		Long: strings.TrimSpace(`query for all harvest module claims or a specific claim using flags:
-
 		Example:
 		$ kvcli q harvest claims
 		$ kvcli q harvest claims --owner kava1l0xsq2z7gqd7yly0g40y5836g0appumark77ny --deposit-type lp --deposit-denom bnb
@@ -237,4 +240,10 @@ func queryClaimsCmd(queryRoute string, cdc *codec.Codec) *cobra.Command {
 			return cliCtx.PrintOutput(claims)
 		},
 	}
+	cmd.Flags().Int(flags.FlagPage, 1, "pagination page to query for")
+	cmd.Flags().Int(flags.FlagLimit, 100, "pagination limit (max 100)")
+	cmd.Flags().String(flagOwner, "", "(optional) filter for claims by owner address")
+	cmd.Flags().String(flagDepositDenom, "", "(optional) filter for claims by denom")
+	cmd.Flags().String(flagDepositType, "", "(optional) filter for claims by type (lp or staking)")
+	return cmd
 }
