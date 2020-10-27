@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -92,7 +93,7 @@ func (suite *KeeperTestSuite) TestGetSetDeleteDeposit() {
 
 func (suite *KeeperTestSuite) TestIterateDeposits() {
 	for i := 0; i < 5; i++ {
-		dep := types.NewDeposit(sdk.AccAddress("test"+string(i)), sdk.NewCoin("bnb", sdk.NewInt(100)), "lp")
+		dep := types.NewDeposit(sdk.AccAddress("test"+fmt.Sprint(i)), sdk.NewCoin("bnb", sdk.NewInt(100)), "lp")
 		suite.Require().NotPanics(func() { suite.keeper.SetDeposit(suite.ctx, dep) })
 	}
 	var deposits []types.Deposit
@@ -105,11 +106,11 @@ func (suite *KeeperTestSuite) TestIterateDeposits() {
 
 func (suite *KeeperTestSuite) TestIterateDepositsByTypeAndDenom() {
 	for i := 0; i < 5; i++ {
-		depA := types.NewDeposit(sdk.AccAddress("test"+string(i)), sdk.NewCoin("bnb", sdk.NewInt(100)), "lp")
+		depA := types.NewDeposit(sdk.AccAddress("test"+fmt.Sprint(i)), sdk.NewCoin("bnb", sdk.NewInt(100)), "lp")
 		suite.Require().NotPanics(func() { suite.keeper.SetDeposit(suite.ctx, depA) })
-		depB := types.NewDeposit(sdk.AccAddress("test"+string(i)), sdk.NewCoin("bnb", sdk.NewInt(100)), "gov")
+		depB := types.NewDeposit(sdk.AccAddress("test"+fmt.Sprint(i)), sdk.NewCoin("bnb", sdk.NewInt(100)), "gov")
 		suite.Require().NotPanics(func() { suite.keeper.SetDeposit(suite.ctx, depB) })
-		depC := types.NewDeposit(sdk.AccAddress("test"+string(i)), sdk.NewCoin("btcb", sdk.NewInt(100)), "lp")
+		depC := types.NewDeposit(sdk.AccAddress("test"+fmt.Sprint(i)), sdk.NewCoin("btcb", sdk.NewInt(100)), "lp")
 		suite.Require().NotPanics(func() { suite.keeper.SetDeposit(suite.ctx, depC) })
 	}
 	var bnbLPDeposits []types.Deposit

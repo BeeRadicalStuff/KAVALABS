@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -111,6 +112,7 @@ func (suite *KeeperTestSuite) TestDeposit() {
 	for _, tc := range testCases {
 		suite.Run(tc.name, func() {
 			// create new app with one funded account
+			fmt.Printf("%s\n", sdk.AccAddress(crypto.AddressHash([]byte("cdp"))))
 
 			// Initialize test app and set context
 			tApp := app.NewTestApp()
