@@ -23,6 +23,7 @@ const (
 	flagDepositDenom = "deposit-denom"
 	flagOwner        = "owner"
 	flagClaimType    = "claim-type"
+	flagUser         = "user"
 )
 
 // GetQueryCmd returns the cli query commands for the harvest module
@@ -41,6 +42,7 @@ func GetQueryCmd(queryRoute string, cdc *codec.Codec) *cobra.Command {
 		queryDepositsCmd(queryRoute, cdc),
 		queryClaimsCmd(queryRoute, cdc),
 		queryBorrowsCmd(queryRoute, cdc),
+		queryPendingTotalBorrowBalance(queryRoute, cdc),
 	)...)
 
 	return harvestQueryCmd
@@ -324,4 +326,52 @@ func queryBorrowedCmd(queryRoute string, cdc *codec.Codec) *cobra.Command {
 			return cliCtx.PrintOutput(borrowedCoins)
 		},
 	}
+}
+
+func queryPendingTotalBorrowBalance(queryRoute string, cdc *codec.Codec) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "pending",
+		Short: "query outstanding borrow balance for a user",
+		Long: strings.TrimSpace(`query outstanding borrow balance for a user:
+
+		Example:
+		$ kvcli q harvest pending --user kava1l0xsq2z7gqd7yly0g40y5836g0appumark77ny`,
+		),
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cliCtx := context.NewCLIContext().WithCodec(cdc)
+
+			var user sdk.AccAddress
+			userBech := viper.GetString(flagUser)
+
+			if len(userBech) != 0 {
+				borrowUser, err := sdk.AccAddressFromBech32(userBech)
+				if err != nil {
+					return err
+				}
+				user = borrowUser
+			}
+
+			params := types.NewQueryPending(user)
+			bz, err := cdc.MarshalJSON(params)
+			if err != nil {
+				return err
+			}
+
+			route := fmt.Sprintf("custom/%s/%s", queryRoute, types.QueryGetPending)
+			res, height, err := cliCtx.QueryWithData(route, bz)
+			if err != nil {
+				return err
+			}
+			cliCtx = cliCtx.WithHeight(height)
+
+			var borrows []types.Borrow
+			if err := cdc.UnmarshalJSON(res, &borrows); err != nil {
+				return fmt.Errorf("failed to unmarshal borrows: %w", err)
+			}
+			return cliCtx.PrintOutput(borrows)
+		},
+	}
+	cmd.Flags().String(flagUser, "", "user address")
+	return cmd
 }
