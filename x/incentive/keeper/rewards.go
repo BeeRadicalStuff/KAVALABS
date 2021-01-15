@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"math"
+	"reflect"
 	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -199,87 +200,93 @@ func (k Keeper) SynchronizeUSDXMintingReward(ctx sdk.Context, cdp cdptypes.CDP) 
 
 // InitializeHardLiquiditySupplyReward initializes the supply-side of a hard liquidity provider claim
 // by creating the claim and setting the supply reward factor index
-func (k Keeper) InitializeHardLiquiditySupplyReward(ctx sdk.Context, deposit hardtypes.Deposit, denom string) {
-	_, found := k.GetRewardPeriod(ctx, denom)
-	if !found {
+func (k Keeper) InitializeHardLiquiditySupplyReward(ctx sdk.Context, deposit hardtypes.Deposit) {
+
+	claim, claimFound := k.GetHardLiquidityProviderClaim(ctx, deposit.Depositor)
+	for _, depositCoin := range deposit.Amount {
+		_, found := k.GetRewardPeriod(ctx, depositCoin.Denom)
+		if !found {
+			continue
+		}
+		supplyFactor, foundSupplyFactor := k.GetHardSupplyRewardFactor(ctx, depositCoin.Denom)
+		if !foundSupplyFactor {
+			supplyFactor = sdk.ZeroDec()
+		}
+		// User's first hard liquidity reward for this denom on the supply-side
+		if !claimFound {
+			claim = types.NewHardLiquidityProviderClaim(
+				deposit.Depositor,
+				sdk.NewCoin(types.HardLiquidityRewardDenom, sdk.ZeroInt()),
+				types.RewardIndexes{},
+				types.RewardIndexes{},
+				types.RewardIndexes{},
+			)
+		}
+		// Update user's existing hard liquidity reward claim with current supply reward index factor
+		supplyIndex, hasSupplyRewardIndex := claim.HasSupplyRewardIndex(depositCoin.Denom)
+		if !hasSupplyRewardIndex {
+			claim.SupplyRewardIndexes = append(claim.SupplyRewardIndexes, types.NewRewardIndex(depositCoin.Denom, supplyFactor))
+		} else {
+			claim.SupplyRewardIndexes[supplyIndex] = types.NewRewardIndex(depositCoin.Denom, supplyFactor)
+		}
+	}
+	// handle edge case where the deposit only has denoms for which there is no reward
+	if reflect.ValueOf(claim).IsZero() {
 		return
-	}
-
-	supplyFactor, foundSupplyFactor := k.GetHardSupplyRewardFactor(ctx, denom)
-	if !foundSupplyFactor {
-		supplyFactor = sdk.ZeroDec()
-	}
-
-	claim, found := k.GetHardLiquidityProviderClaim(ctx, deposit.Depositor)
-	// User's first hard liquidity reward for this denom on the supply-side
-	if !found {
-		claim = types.NewHardLiquidityProviderClaim(
-			deposit.Depositor,
-			sdk.NewCoin(types.HardLiquidityRewardDenom, sdk.ZeroInt()),
-			types.RewardIndexes{types.NewRewardIndex(denom, supplyFactor)},
-			types.RewardIndexes{},
-			types.RewardIndexes{},
-		)
-		k.SetHardLiquidityProviderClaim(ctx, claim)
-		return
-	}
-
-	// Update user's existing hard liquidity reward claim with current supply reward index factor
-	supplyIndex, hasSupplyRewardIndex := claim.HasSupplyRewardIndex(denom)
-	if !hasSupplyRewardIndex {
-		claim.SupplyRewardIndexes = append(claim.SupplyRewardIndexes, types.NewRewardIndex(denom, supplyFactor))
-	} else {
-		claim.SupplyRewardIndexes[supplyIndex] = types.NewRewardIndex(denom, supplyFactor)
 	}
 
 	k.SetHardLiquidityProviderClaim(ctx, claim)
+	return
 }
 
 // SynchronizeHardLiquiditySupplyReward updates the claim object by adding any accumulated rewards
 // and updating the reward index value
-func (k Keeper) SynchronizeHardLiquiditySupplyReward(ctx sdk.Context, deposit hardtypes.Deposit, denom string) {
-	_, found := k.GetRewardPeriod(ctx, denom)
-	if !found {
-		return
+func (k Keeper) SynchronizeHardLiquiditySupplyReward(ctx sdk.Context, deposit hardtypes.Deposit) {
+
+	claim, claimFound := k.GetHardLiquidityProviderClaim(ctx, deposit.Depositor)
+	for _, depositCoin := range deposit.Amount {
+		_, found := k.GetRewardPeriod(ctx, depositCoin.Denom)
+		if !found {
+			continue
+		}
+		supplyFactor, found := k.GetHardSupplyRewardFactor(ctx, depositCoin.Denom)
+		if !found {
+			supplyFactor = sdk.ZeroDec()
+		}
+
+		if !claimFound {
+			claim = types.NewHardLiquidityProviderClaim(
+				deposit.Depositor,
+				sdk.NewCoin(types.HardLiquidityRewardDenom, sdk.ZeroInt()),
+				types.RewardIndexes{},
+				types.RewardIndexes{},
+				types.RewardIndexes{},
+			)
+		}
+		supplyIndex, hasSupplyRewardIndex := claim.HasSupplyRewardIndex(depositCoin.Denom)
+		if !hasSupplyRewardIndex {
+			claim.SupplyRewardIndexes = append(claim.SupplyRewardIndexes, types.NewRewardIndex(depositCoin.Denom, supplyFactor))
+			continue
+		}
+
+		userRewardFactor := claim.SupplyRewardIndexes[supplyIndex].RewardFactor
+		rewardsAccumulatedFactor := supplyFactor.Sub(userRewardFactor)
+		if rewardsAccumulatedFactor.IsZero() {
+			continue
+		}
+		claim.SupplyRewardIndexes[supplyIndex].RewardFactor = supplyFactor
+		newRewardsAmount := rewardsAccumulatedFactor.Mul(deposit.Amount.AmountOf(depositCoin.Denom).ToDec()).RoundInt()
+		if newRewardsAmount.IsZero() {
+			continue
+		}
+		newRewardsCoin := sdk.NewCoin(types.HardLiquidityRewardDenom, newRewardsAmount)
+		claim.Reward = claim.Reward.Add(newRewardsCoin)
 	}
 
-	supplyFactor, found := k.GetHardSupplyRewardFactor(ctx, denom)
-	if !found {
-		supplyFactor = sdk.ZeroDec()
-	}
-
-	claim, found := k.GetHardLiquidityProviderClaim(ctx, deposit.Depositor)
-	if !found {
-		claim = types.NewHardLiquidityProviderClaim(
-			deposit.Depositor,
-			sdk.NewCoin(types.HardLiquidityRewardDenom, sdk.ZeroInt()),
-			types.RewardIndexes{types.NewRewardIndex(denom, supplyFactor)},
-			types.RewardIndexes{},
-			types.RewardIndexes{},
-		)
-		k.SetHardLiquidityProviderClaim(ctx, claim)
+	// handle edge case where the deposit only has denoms for which there is no reward
+	if reflect.ValueOf(claim).IsZero() {
 		return
 	}
-
-	supplyIndex, hasSupplyRewardIndex := claim.HasSupplyRewardIndex(denom)
-	if !hasSupplyRewardIndex {
-		claim.SupplyRewardIndexes = append(claim.SupplyRewardIndexes, types.NewRewardIndex(denom, supplyFactor))
-		k.SetHardLiquidityProviderClaim(ctx, claim)
-	}
-
-	userRewardFactor := claim.SupplyRewardIndexes[supplyIndex].RewardFactor
-	rewardsAccumulatedFactor := supplyFactor.Sub(userRewardFactor)
-	if rewardsAccumulatedFactor.IsZero() {
-		return
-	}
-	claim.SupplyRewardIndexes[supplyIndex].RewardFactor = supplyFactor
-	newRewardsAmount := rewardsAccumulatedFactor.Mul(deposit.Amount.AmountOf(denom).ToDec()).RoundInt()
-	if newRewardsAmount.IsZero() {
-		k.SetHardLiquidityProviderClaim(ctx, claim)
-		return
-	}
-	newRewardsCoin := sdk.NewCoin(types.HardLiquidityRewardDenom, newRewardsAmount)
-	claim.Reward = claim.Reward.Add(newRewardsCoin)
 	k.SetHardLiquidityProviderClaim(ctx, claim)
 	return
 }

@@ -11,29 +11,43 @@ func NewMultiHARDHooks(hooks ...HARDHooks) MultiHARDHooks {
 }
 
 // BeforeDepositCreated runs before a deposit is created
-func (h MultiHARDHooks) BeforeDepositCreated(ctx sdk.Context, deposit Deposit, denom string) {
+func (h MultiHARDHooks) BeforeDepositCreated(ctx sdk.Context, deposit Deposit) {
 	for i := range h {
-		h[i].BeforeDepositCreated(ctx, deposit, denom)
+		h[i].AfterDepositCreated(ctx, deposit)
 	}
 }
 
 // BeforeDepositModified runs before a deposit is modified
-func (h MultiHARDHooks) BeforeDepositModified(ctx sdk.Context, deposit Deposit, denom string) {
+func (h MultiHARDHooks) BeforeDepositModified(ctx sdk.Context, deposit Deposit) {
 	for i := range h {
-		h[i].BeforeDepositModified(ctx, deposit, denom)
+		h[i].BeforeDepositModified(ctx, deposit)
 	}
 }
 
-// BeforeBorrowCreated runs before a borrow is created
-func (h MultiHARDHooks) BeforeBorrowCreated(ctx sdk.Context, borrow Borrow, denom string) {
+// AfterDepositModified runs after a deposit is modified
+func (h MultiHARDHooks) AfterDepositModified(ctx sdk.Context, deposit Deposit) {
 	for i := range h {
-		h[i].BeforeBorrowCreated(ctx, borrow, denom)
+		h[i].AfterDepositModified(ctx, deposit)
+	}
+}
+
+// AfterBorrowCreated runs after a borrow is created
+func (h MultiHARDHooks) AfterBorrowCreated(ctx sdk.Context, borrow Borrow) {
+	for i := range h {
+		h[i].AfterBorrowCreated(ctx, borrow)
 	}
 }
 
 // BeforeBorrowModified runs before a borrow is modified
-func (h MultiHARDHooks) BeforeBorrowModified(ctx sdk.Context, borrow Borrow, denom string) {
+func (h MultiHARDHooks) BeforeBorrowModified(ctx sdk.Context, borrow Borrow) {
 	for i := range h {
-		h[i].BeforeBorrowModified(ctx, borrow, denom)
+		h[i].BeforeBorrowModified(ctx, borrow)
+	}
+}
+
+// AfterBorrowModified runs before a borrow is modified
+func (h MultiHARDHooks) AfterBorrowModified(ctx sdk.Context, borrow Borrow) {
+	for i := range h {
+		h[i].AfterBorrowModified(ctx, borrow)
 	}
 }

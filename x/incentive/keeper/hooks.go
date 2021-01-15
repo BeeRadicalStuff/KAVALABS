@@ -29,22 +29,32 @@ func (h Hooks) BeforeCDPModified(ctx sdk.Context, cdp cdptypes.CDP) {
 	h.k.SynchronizeUSDXMintingReward(ctx, cdp)
 }
 
-// BeforeDepositCreated function that runs before a deposit is created
-func (h Hooks) BeforeDepositCreated(ctx sdk.Context, deposit hardtypes.Deposit, denom string) {
-	h.k.InitializeHardLiquiditySupplyReward(ctx, deposit, denom)
+// AfterDepositCreated function that runs after a deposit is created
+func (h Hooks) AfterDepositCreated(ctx sdk.Context, deposit hardtypes.Deposit) {
+	h.k.InitializeHardLiquiditySupplyReward(ctx, deposit)
 }
 
 // BeforeDepositModified function that runs before a deposit is modified
-func (h Hooks) BeforeDepositModified(ctx sdk.Context, deposit hardtypes.Deposit, denom string) {
-	h.k.SynchronizeHardLiquiditySupplyReward(ctx, deposit, denom)
+func (h Hooks) BeforeDepositModified(ctx sdk.Context, deposit hardtypes.Deposit) {
+	h.k.SynchronizeHardLiquiditySupplyReward(ctx, deposit)
 }
 
-// BeforeBorrowCreated function that runs before a borrow is created
-func (h Hooks) BeforeBorrowCreated(ctx sdk.Context, borrow hardtypes.Borrow, denom string) {
-	h.k.InitializeHardLiquidityBorrowReward(ctx, borrow, denom)
+// AfterDepositModified function that runs after a deposit is modified
+func (h Hooks) AfterDepositModified(ctx sdk.Context, deposit hardtypes.Deposit) {
+	h.k.InitializeHardLiquiditySupplyReward(ctx, deposit)
+}
+
+// AfterBorrowCreated function that runs after a borrow is created
+func (h Hooks) AfterBorrowCreated(ctx sdk.Context, borrow hardtypes.Borrow) {
+	h.k.InitializeHardLiquidityBorrowReward(ctx, borrow)
 }
 
 // BeforeBorrowModified function that runs before a borrow is modified
-func (h Hooks) BeforeBorrowModified(ctx sdk.Context, borrow hardtypes.Borrow, denom string) {
-	h.k.SynchronizeHardLiquidityBorrowReward(ctx, borrow, denom)
+func (h Hooks) BeforeBorrowModified(ctx sdk.Context, borrow hardtypes.Borrow) {
+	h.k.SynchronizeHardLiquidityBorrowReward(ctx, borrow)
+}
+
+// AfterBorrowModified function that runs after a borrow is modified
+func (h Hooks) AfterBorrowModified(ctx sdk.Context, borrow hardtypes.Borrow) {
+	h.k.InitializeHardLiquidityBorrowReward(ctx, borrow)
 }

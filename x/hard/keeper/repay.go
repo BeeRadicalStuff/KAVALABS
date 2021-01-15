@@ -21,15 +21,7 @@ func (k Keeper) Repay(ctx sdk.Context, sender sdk.AccAddress, coins sdk.Coins) e
 	// Call incentive hook for each coin
 	currBorrow, hasBorrow := k.GetBorrow(ctx, sender)
 	if hasBorrow {
-		currBorrowDenoms := getDenoms(currBorrow.Amount)
-		newBorrowDenoms := getDenoms(coins)
-		for _, denom := range removeDuplicates(currBorrowDenoms, newBorrowDenoms) {
-			k.BeforeBorrowModified(ctx, currBorrow, denom)
-		}
-	} else {
-		for _, coin := range coins {
-			k.BeforeBorrowModified(ctx, types.NewBorrow(sender, coins, types.InterestFactors{}), coin.Denom)
-		}
+		k.BeforeBorrowModified(ctx, currBorrow)
 	}
 
 	// Validate requested repay
@@ -60,6 +52,8 @@ func (k Keeper) Repay(ctx sdk.Context, sender sdk.AccAddress, coins sdk.Coins) e
 
 	// Update total borrowed amount
 	k.DecrementBorrowedCoins(ctx, payment)
+
+	k.BeforeBorrowModified(ctx, currBorrow)
 
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(

@@ -28,26 +28,20 @@ func (k Keeper) Borrow(ctx sdk.Context, borrower sdk.AccAddress, coins sdk.Coins
 		return err
 	}
 
+	afterModifiedHook, afterCreatedHook, beforeModifiedHook := false, false, false
+
 	// If the user has an existing borrow, sync its outstanding interest
-	_, found := k.GetBorrow(ctx, borrower)
+	currBorrow, found := k.GetBorrow(ctx, borrower)
 	if found {
+		beforeModifiedHook = true
+		afterModifiedHook = true
 		k.SyncOutstandingInterest(ctx, borrower)
+	} else {
+		afterCreatedHook = true
 	}
 
-	// Call incentive hook for each coin
-	currBorrow, hasBorrow := k.GetBorrow(ctx, borrower)
-	if hasBorrow {
-		currBorrowDenoms := getDenoms(currBorrow.Amount)
-		newBorrowDenoms := getDenoms(coins)
-		for _, denom := range removeDuplicates(currBorrowDenoms, newBorrowDenoms) {
-			k.BeforeBorrowModified(ctx, currBorrow, denom)
-		}
-	} else {
-		for _, coin := range coins {
-			// TODO: Instead of building a temp borrow for first borrow, could refactor BeforeBorrowModified
-			//		 function to take (borrower, coins, coin.Denom) as arguments instead of borrow object
-			k.BeforeBorrowModified(ctx, types.NewBorrow(borrower, coins, types.InterestFactors{}), coin.Denom)
-		}
+	if beforeModifiedHook {
+		k.BeforeBorrowModified(ctx, currBorrow)
 	}
 
 	// Validate borrow amount within user and protocol limits
@@ -96,6 +90,14 @@ func (k Keeper) Borrow(ctx sdk.Context, borrower sdk.AccAddress, coins sdk.Coins
 	// Update total borrowed amount by newly borrowed coins. Don't add user's pending interest as
 	// it has already been included in the total borrowed coins by the BeginBlocker.
 	k.IncrementBorrowedCoins(ctx, coins)
+
+	if afterCreatedHook {
+		k.hooks.AfterBorrowCreated(ctx, borrow)
+	}
+
+	if afterModifiedHook {
+		k.hooks.AfterBorrowModified(ctx, borrow)
+	}
 
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
