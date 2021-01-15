@@ -239,6 +239,13 @@ func (k Keeper) InitializeHardLiquiditySupplyReward(ctx sdk.Context, deposit har
 	return
 }
 
+func (k Keeper) SynchronizeDepositDenoms(ctx sdk.Context, deposit Deposit) {
+	// get deposit denoms
+	// get claim denoms
+	// remove any denoms from claim that are not in deposit
+	// add any denoms from deposit that are not in claim
+}
+
 // SynchronizeHardLiquiditySupplyReward updates the claim object by adding any accumulated rewards
 // and updating the reward index value
 func (k Keeper) SynchronizeHardLiquiditySupplyReward(ctx sdk.Context, deposit hardtypes.Deposit) {

@@ -41,7 +41,7 @@ func (h Hooks) BeforeDepositModified(ctx sdk.Context, deposit hardtypes.Deposit)
 
 // AfterDepositModified function that runs after a deposit is modified
 func (h Hooks) AfterDepositModified(ctx sdk.Context, deposit hardtypes.Deposit) {
-	h.k.InitializeHardLiquiditySupplyReward(ctx, deposit)
+	h.k.SynchronizeDepositDenoms(ctx, deposit)
 }
 
 // AfterBorrowCreated function that runs after a borrow is created
