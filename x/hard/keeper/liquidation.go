@@ -179,7 +179,7 @@ func (k Keeper) StartAuctions(ctx sdk.Context, borrower sdk.AccAddress, borrows,
 				if err != nil {
 					return err
 				}
-				fmt.Println("1 StartCollateralAuction with lot:", lot)
+				fmt.Println("1 StartCollateralAuction with lot and bid:", lot, bid)
 				_, err = k.auctionKeeper.StartCollateralAuction(ctx, types.LiquidatorAccount, lot, bid, returnAddrs, weights, debt)
 				if err != nil {
 					return err
@@ -223,7 +223,7 @@ func (k Keeper) StartAuctions(ctx sdk.Context, borrower sdk.AccAddress, borrows,
 				if err != nil {
 					return err
 				}
-				fmt.Println("2 StartCollateralAuction with lot:", lot)
+				fmt.Println("2 StartCollateralAuction with lot:", lot, bid)
 				_, err = k.auctionKeeper.StartCollateralAuction(ctx, types.LiquidatorAccount, lot, bid, returnAddrs, weights, debt)
 				if err != nil {
 					return err

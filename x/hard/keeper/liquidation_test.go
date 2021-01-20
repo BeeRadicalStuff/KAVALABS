@@ -126,7 +126,7 @@ func (suite *KeeperTestSuite) TestIndexLiquidation() {
 			"valid: LTV index liquidates borrow with multiple coin types",
 			args{
 				borrower:              borrower,
-				initialModuleCoins:    sdk.NewCoins(sdk.NewCoin("ukava", sdk.NewInt(100*KAVA_CF))),
+				initialModuleCoins:    sdk.NewCoins(),
 				initialBorrowerCoins:  sdk.NewCoins(sdk.NewCoin("ukava", sdk.NewInt(100*KAVA_CF)), sdk.NewCoin("bnb", sdk.NewInt(100*BNB_CF))),
 				depositCoins:          sdk.NewCoins(sdk.NewCoin("ukava", sdk.NewInt(10*KAVA_CF)), sdk.NewCoin("bnb", sdk.NewInt(10*BNB_CF))),
 				borrowCoins:           sdk.NewCoins(sdk.NewCoin("ukava", sdk.NewInt(8*KAVA_CF)), sdk.NewCoin("bnb", sdk.NewInt(8*BNB_CF))),
