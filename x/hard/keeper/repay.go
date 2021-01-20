@@ -15,9 +15,6 @@ func (k Keeper) Repay(ctx sdk.Context, sender sdk.AccAddress, coins sdk.Coins) e
 		return err
 	}
 
-	// Sync interest so loan is up-to-date
-	k.SyncOutstandingInterest(ctx, sender)
-
 	// Validate requested repay
 	err = k.ValidateRepay(ctx, sender, coins)
 	if err != nil {
@@ -25,10 +22,16 @@ func (k Keeper) Repay(ctx sdk.Context, sender sdk.AccAddress, coins sdk.Coins) e
 	}
 
 	// Check borrow exists here to avoid duplicating store read in ValidateRepay
-	borrow, found := k.GetBorrow(ctx, sender)
-	if !found {
+	borrow, hasExistingBorrow := k.GetBorrow(ctx, sender)
+	if !hasExistingBorrow {
 		return types.ErrBorrowNotFound
 	}
+
+	// Call incentive hook
+	k.BeforeBorrowModified(ctx, borrow)
+
+	// Sync interest so loan is up-to-date
+	k.SyncOutstandingInterest(ctx, sender)
 
 	payment := k.CalculatePaymentAmount(borrow.Amount, coins)
 
@@ -46,6 +49,11 @@ func (k Keeper) Repay(ctx sdk.Context, sender sdk.AccAddress, coins sdk.Coins) e
 
 	// Update total borrowed amount
 	k.DecrementBorrowedCoins(ctx, payment)
+
+	// Call incentive hook
+	if !borrow.Amount.Empty() {
+		k.AfterBorrowModified(ctx, borrow)
+	}
 
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(

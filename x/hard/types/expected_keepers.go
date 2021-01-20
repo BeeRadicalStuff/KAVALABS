@@ -48,8 +48,10 @@ type AuctionKeeper interface {
 
 // HARDHooks event hooks for other keepers to run code in response to HARD modifications
 type HARDHooks interface {
-	BeforeDepositCreated(ctx sdk.Context, deposit Deposit)
+	AfterDepositCreated(ctx sdk.Context, deposit Deposit)
 	BeforeDepositModified(ctx sdk.Context, deposit Deposit)
-	BeforeBorrowCreated(ctx sdk.Context, borrow Borrow)
+	AfterDepositModified(ctx sdk.Context, deposit Deposit)
+	AfterBorrowCreated(ctx sdk.Context, borrow Borrow)
 	BeforeBorrowModified(ctx sdk.Context, borrow Borrow)
+	AfterBorrowModified(ctx sdk.Context, borrow Borrow)
 }

@@ -18,6 +18,12 @@ func (k Keeper) Deposit(ctx sdk.Context, depositor sdk.AccAddress, coins sdk.Coi
 		return err
 	}
 
+	// Call incentive hook
+	deposit, hasExistingDeposit := k.GetDeposit(ctx, depositor)
+	if hasExistingDeposit {
+		k.BeforeDepositModified(ctx, deposit)
+	}
+
 	k.SyncOutstandingInterest(ctx, depositor)
 
 	err = k.ValidateDeposit(ctx, coins)
@@ -44,8 +50,8 @@ func (k Keeper) Deposit(ctx sdk.Context, depositor sdk.AccAddress, coins sdk.Coi
 		return err
 	}
 
-	deposit, found := k.GetDeposit(ctx, depositor)
-	if !found {
+	// Make new deposit or add to existing deposit
+	if !hasExistingDeposit {
 		deposit = types.NewDeposit(depositor, coins)
 	} else {
 		deposit.Amount = deposit.Amount.Add(coins...)
@@ -54,6 +60,14 @@ func (k Keeper) Deposit(ctx sdk.Context, depositor sdk.AccAddress, coins sdk.Coi
 	k.SetDeposit(ctx, deposit)
 
 	k.UpdateItemInLtvIndex(ctx, prevLtv, shouldRemoveIndex, depositor)
+
+	k.IncrementSuppliedCoins(ctx, coins)
+
+	if !hasExistingDeposit { // User's first deposit
+		k.AfterDepositCreated(ctx, deposit)
+	} else {
+		k.AfterDepositModified(ctx, deposit)
+	}
 
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(
@@ -80,7 +94,7 @@ func (k Keeper) ValidateDeposit(ctx sdk.Context, coins sdk.Coins) error {
 
 // Withdraw returns some or all of a deposit back to original depositor
 func (k Keeper) Withdraw(ctx sdk.Context, depositor sdk.AccAddress, coins sdk.Coins) error {
-	deposit, found := k.GetDeposit(ctx, depositor)
+	_, found := k.GetDeposit(ctx, depositor)
 	if !found {
 		return sdkerrors.Wrapf(types.ErrDepositNotFound, "no deposit found for %s", depositor)
 	}
@@ -90,6 +104,10 @@ func (k Keeper) Withdraw(ctx sdk.Context, depositor sdk.AccAddress, coins sdk.Co
 	if err != nil {
 		return err
 	}
+
+	// Call incentive hook
+	deposit, _ := k.GetDeposit(ctx, depositor)
+	k.BeforeDepositModified(ctx, deposit)
 
 	k.SyncOutstandingInterest(ctx, depositor)
 
@@ -142,6 +160,39 @@ func (k Keeper) Withdraw(ctx sdk.Context, depositor sdk.AccAddress, coins sdk.Co
 
 	k.UpdateItemInLtvIndex(ctx, prevLtv, shouldRemoveIndex, depositor)
 
+	k.DecrementSuppliedCoins(ctx, coins)
+
+	// Call incentive hook
+	k.AfterDepositModified(ctx, deposit)
+
+	return nil
+}
+
+// IncrementSuppliedCoins increments the amount of supplied coins by the newCoins parameter
+func (k Keeper) IncrementSuppliedCoins(ctx sdk.Context, newCoins sdk.Coins) {
+	suppliedCoins, found := k.GetSuppliedCoins(ctx)
+	if !found {
+		if !newCoins.Empty() {
+			k.SetSuppliedCoins(ctx, newCoins)
+		}
+	} else {
+		k.SetSuppliedCoins(ctx, suppliedCoins.Add(newCoins...))
+	}
+}
+
+// DecrementSuppliedCoins decrements the amount of supplied coins by the coins parameter
+func (k Keeper) DecrementSuppliedCoins(ctx sdk.Context, coins sdk.Coins) error {
+	suppliedCoins, found := k.GetSuppliedCoins(ctx)
+	if !found {
+		return sdkerrors.Wrapf(types.ErrSuppliedCoinsNotFound, "cannot withdraw coins if no coins are currently deposited")
+	}
+
+	updatedSuppliedCoins, isAnyNegative := suppliedCoins.SafeSub(coins)
+	if isAnyNegative {
+		return types.ErrNegativeSuppliedCoins
+	}
+
+	k.SetSuppliedCoins(ctx, updatedSuppliedCoins)
 	return nil
 }
 

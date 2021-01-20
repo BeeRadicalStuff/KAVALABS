@@ -28,11 +28,13 @@ func (k Keeper) Borrow(ctx sdk.Context, borrower sdk.AccAddress, coins sdk.Coins
 		return err
 	}
 
-	// If the user has an existing borrow, sync its outstanding interest
-	_, found := k.GetBorrow(ctx, borrower)
-	if found {
-		k.SyncOutstandingInterest(ctx, borrower)
+	// Call incentive hook
+	borrow, hasExistingBorrow := k.GetBorrow(ctx, borrower)
+	if hasExistingBorrow {
+		k.BeforeBorrowModified(ctx, borrow)
 	}
+
+	k.SyncOutstandingInterest(ctx, borrower)
 
 	// Validate borrow amount within user and protocol limits
 	err = k.ValidateBorrow(ctx, borrower, coins)
@@ -59,27 +61,33 @@ func (k Keeper) Borrow(ctx sdk.Context, borrower sdk.AccAddress, coins sdk.Coins
 
 	// On user's first borrow, build borrow index list containing denoms and current global borrow index value
 	// We use a list of BorrowIndexItem here because Amino doesn't support marshaling maps.
-	if !found {
+	if !hasExistingBorrow {
 		var interestFactors types.InterestFactors
 		for _, coin := range coins {
 			interestFactorValue, _ := k.GetInterestFactor(ctx, coin.Denom)
 			interestFactor := types.NewInterestFactor(coin.Denom, interestFactorValue)
 			interestFactors = append(interestFactors, interestFactor)
 		}
-		borrow := types.NewBorrow(borrower, sdk.Coins{}, interestFactors)
+		borrow = types.NewBorrow(borrower, sdk.Coins{}, interestFactors)
 		k.SetBorrow(ctx, borrow)
 	}
 
 	// Add the newly borrowed coins to the user's borrow object
-	borrow, _ := k.GetBorrow(ctx, borrower)
-	borrow.Amount = borrow.Amount.Add(coins...)
-	k.SetBorrow(ctx, borrow)
+	currBorrow, _ := k.GetBorrow(ctx, borrower)
+	currBorrow.Amount = currBorrow.Amount.Add(coins...)
+	k.SetBorrow(ctx, currBorrow)
 
 	k.UpdateItemInLtvIndex(ctx, prevLtv, shouldRemoveIndex, borrower)
 
 	// Update total borrowed amount by newly borrowed coins. Don't add user's pending interest as
 	// it has already been included in the total borrowed coins by the BeginBlocker.
 	k.IncrementBorrowedCoins(ctx, coins)
+
+	if !hasExistingBorrow {
+		k.AfterBorrowCreated(ctx, currBorrow)
+	} else {
+		k.AfterBorrowModified(ctx, currBorrow)
+	}
 
 	ctx.EventManager().EmitEvent(
 		sdk.NewEvent(

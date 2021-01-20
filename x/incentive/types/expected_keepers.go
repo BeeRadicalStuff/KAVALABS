@@ -12,7 +12,6 @@ import (
 // SupplyKeeper defines the expected supply keeper for module accounts
 type SupplyKeeper interface {
 	GetModuleAccount(ctx sdk.Context, name string) supplyexported.ModuleAccountI
-
 	SendCoinsFromModuleToAccount(ctx sdk.Context, senderModule string, recipientAddr sdk.AccAddress, amt sdk.Coins) error
 }
 
@@ -21,6 +20,13 @@ type CdpKeeper interface {
 	IterateCdpsByCollateralType(ctx sdk.Context, collateralType string, cb func(cdp cdptypes.CDP) (stop bool))
 	GetTotalPrincipal(ctx sdk.Context, collateralType string, principalDenom string) (total sdk.Int)
 	GetCdpByOwnerAndCollateralType(ctx sdk.Context, owner sdk.AccAddress, collateralType string) (cdptypes.CDP, bool)
+}
+
+// HardKeeper defines the expected hard keeper for interacting with Hard protocol
+type HardKeeper interface {
+	GetInterestFactor(ctx sdk.Context, denom string) (sdk.Dec, bool)
+	GetBorrowedCoins(ctx sdk.Context) (coins sdk.Coins, found bool)
+	GetSuppliedCoins(ctx sdk.Context) (coins sdk.Coins, found bool)
 }
 
 // AccountKeeper defines the expected keeper interface for interacting with account
@@ -37,8 +43,10 @@ type CDPHooks interface {
 
 // HARDHooks event hooks for other keepers to run code in response to HARD modifications
 type HARDHooks interface {
-	BeforeDepositCreated(ctx sdk.Context, deposit hardtypes.Deposit)
+	AfterDepositCreated(ctx sdk.Context, deposit hardtypes.Deposit)
 	BeforeDepositModified(ctx sdk.Context, deposit hardtypes.Deposit)
-	BeforeBorrowCreated(ctx sdk.Context, borrow hardtypes.Borrow)
+	AfterDepositModified(ctx sdk.Context, deposit hardtypes.Deposit)
+	AfterBorrowCreated(ctx sdk.Context, borrow hardtypes.Borrow)
 	BeforeBorrowModified(ctx sdk.Context, borrow hardtypes.Borrow)
+	AfterBorrowModified(ctx sdk.Context, deposit hardtypes.Deposit)
 }
