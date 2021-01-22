@@ -19,6 +19,10 @@ func (k Keeper) AccumulateUSDXMintingRewards(ctx sdk.Context, rewardPeriod types
 		k.SetPreviousUSDXMintingAccrualTime(ctx, rewardPeriod.CollateralType, ctx.BlockTime())
 		return nil
 	}
+	if !rewardPeriod.Active {
+		k.SetPreviousUSDXMintingAccrualTime(ctx, rewardPeriod.CollateralType, ctx.BlockTime())
+		return nil
+	}
 	timeElapsed := CalculateTimeElapsed(rewardPeriod, ctx.BlockTime(), previousAccrualTime)
 	if timeElapsed.IsZero() {
 		return nil
@@ -54,6 +58,10 @@ func (k Keeper) AccumulateUSDXMintingRewards(ctx sdk.Context, rewardPeriod types
 func (k Keeper) AccumulateHardBorrowRewards(ctx sdk.Context, rewardPeriod types.RewardPeriod) error {
 	previousAccrualTime, found := k.GetPreviousHardBorrowRewardAccrualTime(ctx, rewardPeriod.CollateralType)
 	if !found {
+		k.SetPreviousHardBorrowRewardAccrualTime(ctx, rewardPeriod.CollateralType, ctx.BlockTime())
+		return nil
+	}
+	if !rewardPeriod.Active {
 		k.SetPreviousHardBorrowRewardAccrualTime(ctx, rewardPeriod.CollateralType, ctx.BlockTime())
 		return nil
 	}
@@ -96,6 +104,10 @@ func (k Keeper) AccumulateHardBorrowRewards(ctx sdk.Context, rewardPeriod types.
 func (k Keeper) AccumulateHardSupplyRewards(ctx sdk.Context, rewardPeriod types.RewardPeriod) error {
 	previousAccrualTime, found := k.GetPreviousHardSupplyRewardAccrualTime(ctx, rewardPeriod.CollateralType)
 	if !found {
+		k.SetPreviousHardSupplyRewardAccrualTime(ctx, rewardPeriod.CollateralType, ctx.BlockTime())
+		return nil
+	}
+	if !rewardPeriod.Active {
 		k.SetPreviousHardSupplyRewardAccrualTime(ctx, rewardPeriod.CollateralType, ctx.BlockTime())
 		return nil
 	}
