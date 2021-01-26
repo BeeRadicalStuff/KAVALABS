@@ -4,7 +4,9 @@ go 1.13
 
 require (
 	github.com/cosmos/cosmos-sdk v0.39.2
+	github.com/go-kit/kit v0.10.0
 	github.com/gorilla/mux v1.7.4
+	github.com/prometheus/client_golang v1.5.1
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/viper v1.6.3
 	github.com/stretchr/testify v1.6.1

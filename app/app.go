@@ -3,7 +3,10 @@ package app
 import (
 	"io"
 	"os"
+	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	dbm "github.com/tendermint/tm-db"
 
 	abci "github.com/tendermint/tendermint/abci/types"
@@ -536,14 +539,39 @@ func SetBip44CoinType(config *sdk.Config) {
 	config.SetCoinType(Bip44CoinType)
 }
 
+var beginBlockTime = promauto.NewGauge(prometheus.GaugeOpts{
+	Namespace: "kava",
+	Name:      "begin_block",
+	Help:      "time for begin blocker to run",
+})
+var midBlockTime = promauto.NewGauge(prometheus.GaugeOpts{
+	Namespace: "kava",
+	Name:      "mid_block",
+	Help:      "time for all deliverTxs to run",
+})
+var endBlockTime = promauto.NewGauge(prometheus.GaugeOpts{
+	Namespace: "kava",
+	Name:      "end_block",
+	Help:      "time for end blocker to run",
+})
+var midBlockT time.Time
+
 // application updates every end block
 func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
-	return app.mm.BeginBlock(ctx, req)
+	t := time.Now()
+	res := app.mm.BeginBlock(ctx, req)
+	beginBlockTime.Set(time.Since(t).Seconds())
+	midBlockT = time.Now()
+	return res
 }
 
 // application updates every end block
 func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-	return app.mm.EndBlock(ctx, req)
+	midBlockTime.Set(time.Since(midBlockT).Seconds())
+	t := time.Now()
+	res := app.mm.EndBlock(ctx, req)
+	endBlockTime.Set(time.Since(t).Seconds())
+	return res
 }
 
 // custom logic for app initialization
