@@ -136,6 +136,7 @@ func (k Keeper) AccumulateHardSupplyRewards(ctx sdk.Context, rewardPeriod types.
 		fmt.Printf("Time elapsed is zero, exiting.\n")
 		return nil
 	}
+	fmt.Printf("Time elapsed: %s\n", timeElapsed)
 	if rewardPeriod.RewardsPerSecond.IsZero() {
 		fmt.Printf("Rewards per second is zero, exiting.\n")
 		k.SetPreviousHardSupplyRewardAccrualTime(ctx, rewardPeriod.CollateralType, ctx.BlockTime())
@@ -155,6 +156,7 @@ func (k Keeper) AccumulateHardSupplyRewards(ctx sdk.Context, rewardPeriod types.
 		k.SetPreviousHardSupplyRewardAccrualTime(ctx, rewardPeriod.CollateralType, ctx.BlockTime())
 		return nil
 	}
+	fmt.Printf("Total supplied: %s\n", totalSupplied)
 
 	previousRewardIndexes, found := k.GetHardSupplyRewardIndexes(ctx, rewardPeriod.CollateralType)
 	if !found {
@@ -692,13 +694,13 @@ func CalculateTimeElapsed(start, end, blockTime time.Time, previousAccrualTime t
 	}
 
 	if end.Before(blockTime) {
-		return sdk.NewInt(int64(math.RoundToEven(
+		return sdk.MaxInt(sdk.ZeroInt(), sdk.NewInt(int64(math.RoundToEven(
 			end.Sub(previousAccrualTime).Seconds(),
-		)))
+		))))
 	}
-	return sdk.NewInt(int64(math.RoundToEven(
+	return sdk.MaxInt(sdk.ZeroInt(), sdk.NewInt(int64(math.RoundToEven(
 		blockTime.Sub(previousAccrualTime).Seconds(),
-	)))
+	))))
 }
 
 // SimulateHardSynchronization calculates a user's outstanding hard rewards by simulating reward synchronization
