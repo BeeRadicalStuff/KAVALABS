@@ -14,16 +14,22 @@ import (
 
 // AccumulateUSDXMintingRewards updates the rewards accumulated for the input reward period
 func (k Keeper) AccumulateUSDXMintingRewards(ctx sdk.Context, rewardPeriod types.RewardPeriod) error {
+	fmt.Printf("Accumulating USDX minting Rewards for %s\n", rewardPeriod.CollateralType)
 	previousAccrualTime, found := k.GetPreviousUSDXMintingAccrualTime(ctx, rewardPeriod.CollateralType)
 	if !found {
+		fmt.Printf("Didn't find previous accrual time, exiting \n")
 		k.SetPreviousUSDXMintingAccrualTime(ctx, rewardPeriod.CollateralType, ctx.BlockTime())
 		return nil
 	}
+	fmt.Printf("Previous Accrual Time %s\n", previousAccrualTime)
+
 	timeElapsed := CalculateTimeElapsed(rewardPeriod.Start, rewardPeriod.End, ctx.BlockTime(), previousAccrualTime)
 	if timeElapsed.IsZero() {
+		fmt.Printf("Time elapsed is zero, exiting.\n")
 		return nil
 	}
 	if rewardPeriod.RewardsPerSecond.Amount.IsZero() {
+		fmt.Printf("Rewards per second is zero, exiting.\n")
 		k.SetPreviousUSDXMintingAccrualTime(ctx, rewardPeriod.CollateralType, ctx.BlockTime())
 		return nil
 	}
@@ -118,28 +124,34 @@ func (k Keeper) AccumulateHardBorrowRewards(ctx sdk.Context, rewardPeriod types.
 
 // AccumulateHardSupplyRewards updates the rewards accumulated for the input reward period
 func (k Keeper) AccumulateHardSupplyRewards(ctx sdk.Context, rewardPeriod types.MultiRewardPeriod) error {
+	fmt.Printf("Accumulating Hard Supply Rewards for %s\n", rewardPeriod.CollateralType)
 	previousAccrualTime, found := k.GetPreviousHardSupplyRewardAccrualTime(ctx, rewardPeriod.CollateralType)
 	if !found {
+		fmt.Printf("Didn't find previous accrual time, exiting \n")
 		k.SetPreviousHardSupplyRewardAccrualTime(ctx, rewardPeriod.CollateralType, ctx.BlockTime())
 		return nil
 	}
 	timeElapsed := CalculateTimeElapsed(rewardPeriod.Start, rewardPeriod.End, ctx.BlockTime(), previousAccrualTime)
 	if timeElapsed.IsZero() {
+		fmt.Printf("Time elapsed is zero, exiting.\n")
 		return nil
 	}
 	if rewardPeriod.RewardsPerSecond.IsZero() {
+		fmt.Printf("Rewards per second is zero, exiting.\n")
 		k.SetPreviousHardSupplyRewardAccrualTime(ctx, rewardPeriod.CollateralType, ctx.BlockTime())
 		return nil
 	}
 
 	totalSuppliedCoins, foundTotalSuppliedCoins := k.hardKeeper.GetSuppliedCoins(ctx)
 	if !foundTotalSuppliedCoins {
+		fmt.Printf("Didn't find total supplied coins, exiting.\n")
 		k.SetPreviousHardSupplyRewardAccrualTime(ctx, rewardPeriod.CollateralType, ctx.BlockTime())
 		return nil
 	}
 
 	totalSupplied := totalSuppliedCoins.AmountOf(rewardPeriod.CollateralType).ToDec()
 	if totalSupplied.IsZero() {
+		fmt.Printf("Total supplied is zero, exiting.\n")
 		k.SetPreviousHardSupplyRewardAccrualTime(ctx, rewardPeriod.CollateralType, ctx.BlockTime())
 		return nil
 	}
@@ -152,24 +164,32 @@ func (k Keeper) AccumulateHardSupplyRewards(ctx sdk.Context, rewardPeriod types.
 		}
 		k.SetHardSupplyRewardIndexes(ctx, rewardPeriod.CollateralType, previousRewardIndexes)
 	}
+	fmt.Printf("Previous reward indexes: %s\n", previousRewardIndexes)
 	hardFactor, found := k.hardKeeper.GetSupplyInterestFactor(ctx, rewardPeriod.CollateralType)
 	if !found {
+		fmt.Printf("hard factor (GetSupplyInterestFactor) not found, exiting.\n")
 		k.SetPreviousHardSupplyRewardAccrualTime(ctx, rewardPeriod.CollateralType, ctx.BlockTime())
 		return nil
 	}
+	fmt.Printf("Hard factor: %s\n", hardFactor)
 
 	newRewardIndexes := previousRewardIndexes
 	for _, rewardCoin := range rewardPeriod.RewardsPerSecond {
 		newRewards := rewardCoin.Amount.ToDec().Mul(timeElapsed.ToDec())
+		fmt.Printf("newRewards: %s\n", newRewards)
 		previousRewardIndex, found := previousRewardIndexes.GetRewardIndex(rewardCoin.Denom)
 		if !found {
 			previousRewardIndex = types.NewRewardIndex(rewardCoin.Denom, sdk.ZeroDec())
 		}
+		fmt.Printf("previousRewardIndex: %s\n", previousRewardIndex)
 
 		// Calculate new reward factor and update reward index
 		rewardFactor := newRewards.Mul(hardFactor).Quo(totalSupplied)
+		fmt.Printf("rewardFactor: %s\n", rewardFactor)
 		newRewardFactorValue := previousRewardIndex.RewardFactor.Add(rewardFactor)
+		fmt.Printf("newRewardFactorValue: %s\n", newRewardFactorValue)
 		newRewardIndex := types.NewRewardIndex(rewardCoin.Denom, newRewardFactorValue)
+		fmt.Printf("newRewardIndex: %s\n", newRewardIndex)
 		i, found := newRewardIndexes.GetFactorIndex(rewardCoin.Denom)
 		if found {
 			newRewardIndexes[i] = newRewardIndex
@@ -177,6 +197,7 @@ func (k Keeper) AccumulateHardSupplyRewards(ctx sdk.Context, rewardPeriod types.
 			newRewardIndexes = append(newRewardIndexes, newRewardIndex)
 		}
 	}
+	fmt.Printf("newRewardIndexes: %s\n", newRewardIndexes)
 	k.SetHardSupplyRewardIndexes(ctx, rewardPeriod.CollateralType, newRewardIndexes)
 	k.SetPreviousHardSupplyRewardAccrualTime(ctx, rewardPeriod.CollateralType, ctx.BlockTime())
 	return nil
