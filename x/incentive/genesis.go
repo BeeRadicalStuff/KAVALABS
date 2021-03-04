@@ -119,9 +119,9 @@ func ExportGenesis(ctx sdk.Context, k keeper.Keeper) types.GenesisState {
 		if err != nil {
 			panic(err)
 		}
-		for i := range claim.RewardIndexes {
-			claim.RewardIndexes[i].RewardFactor = sdk.ZeroDec()
-		}
+		// for i := range claim.RewardIndexes {
+		// 	claim.RewardIndexes[i].RewardFactor = sdk.ZeroDec()
+		// }
 		synchronizedUsdxClaims = append(synchronizedUsdxClaims, claim)
 	}
 
@@ -131,24 +131,23 @@ func ExportGenesis(ctx sdk.Context, k keeper.Keeper) types.GenesisState {
 		if !found {
 			panic("hard liquidity provider claim should always be found after synchronization")
 		}
-		for i, bri := range claim.BorrowRewardIndexes {
-			for j := range bri.RewardIndexes {
-				claim.BorrowRewardIndexes[i].RewardIndexes[j].RewardFactor = sdk.ZeroDec()
-			}
-		}
-		for i, sri := range claim.SupplyRewardIndexes {
-			for j := range sri.RewardIndexes {
-				claim.SupplyRewardIndexes[i].RewardIndexes[j].RewardFactor = sdk.ZeroDec()
-			}
-		}
-		for i := range claim.DelegatorRewardIndexes {
-			claim.DelegatorRewardIndexes[i].RewardFactor = sdk.ZeroDec()
-		}
+		// for i, bri := range claim.BorrowRewardIndexes {
+		// 	for j := range bri.RewardIndexes {
+		// 		claim.BorrowRewardIndexes[i].RewardIndexes[j].RewardFactor = sdk.ZeroDec()
+		// 	}
+		// }
+		// for i, sri := range claim.SupplyRewardIndexes {
+		// 	for j := range sri.RewardIndexes {
+		// 		claim.SupplyRewardIndexes[i].RewardIndexes[j].RewardFactor = sdk.ZeroDec()
+		// 	}
+		// }
+		// for i := range claim.DelegatorRewardIndexes {
+		// 	claim.DelegatorRewardIndexes[i].RewardFactor = sdk.ZeroDec()
+		// }
 		synchronizedHardClaims = append(synchronizedHardClaims, claim)
 	}
 
-	var gats GenesisAccumulationTimes
-
+	var usdxGenesisAccumulationTimes GenesisAccumulationTimes
 	for _, rp := range params.USDXMintingRewardPeriods {
 		pat, found := k.GetPreviousUSDXMintingAccrualTime(ctx, rp.CollateralType)
 		if !found {
@@ -159,8 +158,62 @@ func ExportGenesis(ctx sdk.Context, k keeper.Keeper) types.GenesisState {
 			factor = sdk.ZeroDec()
 		}
 		gat := types.NewGenesisAccumulationTime(rp.CollateralType, pat, factor)
-		gats = append(gats, gat)
+		usdxGenesisAccumulationTimes = append(usdxGenesisAccumulationTimes, gat)
 	}
 
-	return types.NewGenesisState(params, gats, DefaultGenesisAccumulationTimes, DefaultGenesisAccumulationTimes, DefaultGenesisAccumulationTimes, synchronizedUsdxClaims, synchronizedHardClaims)
+	var hardDelegatorAccumTimes GenesisAccumulationTimes
+	for _, rp := range params.HardDelegatorRewardPeriods {
+		pat, found := k.GetPreviousHardDelegatorRewardAccrualTime(ctx, rp.CollateralType)
+		if !found {
+			pat = ctx.BlockTime()
+		}
+		factor, found := k.GetHardDelegatorRewardFactor(ctx, rp.CollateralType)
+		if !found {
+			factor = sdk.ZeroDec()
+		}
+		gat := types.NewGenesisAccumulationTime(rp.CollateralType, pat, factor)
+		hardDelegatorAccumTimes = append(hardDelegatorAccumTimes, gat)
+	}
+
+	var hardSupplyGenesisAccumulationTimes types.GenesisAccumulationTimes
+	for _, mrp := range params.HardSupplyRewardPeriods {
+		pat, found := k.GetPreviousHardSupplyRewardAccrualTime(ctx, mrp.CollateralType)
+		if !found {
+			pat = ctx.BlockTime()
+		}
+		rewardIndexes, found := k.GetHardSupplyRewardIndexes(ctx, mrp.CollateralType)
+		if !found {
+			rewardIndexes = types.RewardIndexes{}
+		}
+		factor := sdk.ZeroDec()
+		for _, ri := range rewardIndexes {
+			if ri.RewardFactor.GT(sdk.ZeroDec()) {
+				factor = ri.RewardFactor
+			}
+		}
+		hardSupplyGenesisAccumulationTime := types.NewGenesisAccumulationTime(mrp.CollateralType, pat, factor)
+		hardSupplyGenesisAccumulationTimes = append(hardSupplyGenesisAccumulationTimes, hardSupplyGenesisAccumulationTime)
+	}
+
+	var hardBorrowGenesisAccumulationTimes types.GenesisAccumulationTimes
+	for _, mrp := range params.HardBorrowRewardPeriods {
+		pat, found := k.GetPreviousHardBorrowRewardAccrualTime(ctx, mrp.CollateralType)
+		if !found {
+			pat = ctx.BlockTime()
+		}
+		rewardIndexes, found := k.GetHardBorrowRewardIndexes(ctx, mrp.CollateralType)
+		if !found {
+			rewardIndexes = types.RewardIndexes{}
+		}
+		factor := sdk.ZeroDec()
+		for _, ri := range rewardIndexes {
+			if ri.RewardFactor.GT(sdk.ZeroDec()) {
+				factor = ri.RewardFactor
+			}
+		}
+		hardBorrowGenesisAccumulationTime := types.NewGenesisAccumulationTime(mrp.CollateralType, pat, factor)
+		hardBorrowGenesisAccumulationTimes = append(hardBorrowGenesisAccumulationTimes, hardBorrowGenesisAccumulationTime)
+	}
+
+	return types.NewGenesisState(params, usdxGenesisAccumulationTimes, hardSupplyGenesisAccumulationTimes, hardBorrowGenesisAccumulationTimes, hardDelegatorAccumTimes, synchronizedUsdxClaims, synchronizedHardClaims)
 }
