@@ -48,7 +48,7 @@ __Note:__ This can take a while!
   # Verify output of genesis migration
   kvd validate-genesis genesis.json # should say it's valid
   jq -S -c -M '' genesis.json | shasum -a 256
-  # PLACEHOLDER
+  # 8e59b43d5c287b752e9f7efa083b01cb2ca504fb27698bda7b9c16dc60b31a22
 
   # Restart node with migrated genesis state
   cp genesis.json ~/.kvd/config/genesis.json
