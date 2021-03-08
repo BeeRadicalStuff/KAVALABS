@@ -55,6 +55,9 @@ func (k Keeper) GetPreviousBlockTime(ctx sdk.Context) (blockTime time.Time) {
 
 // SetPreviousBlockTime set the time of the previous block
 func (k Keeper) SetPreviousBlockTime(ctx sdk.Context, blockTime time.Time) {
+	fmt.Printf(`
+	Setting validator vesting previous block time to: %s
+	`, blockTime)
 	store := ctx.KVStore(k.storeKey)
 	b := k.cdc.MustMarshalBinaryLengthPrefixed(blockTime)
 	store.Set(types.BlocktimeKey, b)
