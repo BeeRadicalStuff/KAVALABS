@@ -2,6 +2,7 @@ package validatorvesting
 
 import (
 	"bytes"
+	"fmt"
 	"time"
 
 	tmtime "github.com/tendermint/tendermint/types/time"
@@ -15,6 +16,10 @@ import (
 
 // BeginBlocker updates the vote signing information for each validator vesting account, updates account when period changes, and updates the previousBlockTime value in the store.
 func BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock, k keeper.Keeper) {
+	fmt.Printf(`
+	Block height: %d
+	Block time: %s
+	`, ctx.BlockHeight(), ctx.BlockTime())
 	previousBlockTime := tmtime.Canonical(time.Unix(0, 0))
 	if ctx.BlockHeight() > 1 {
 		previousBlockTime = k.GetPreviousBlockTime(ctx)
