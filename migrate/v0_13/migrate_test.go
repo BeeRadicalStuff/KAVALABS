@@ -176,9 +176,9 @@ func TestCommittee(t *testing.T) {
 
 	oldSPCP := oldGenState.Committees[0].Permissions[0].(v0_11committee.SubParamChangePermission)
 	newSPCP := newGenState.Committees[0].Permissions[0].(v0_13committee.SubParamChangePermission)
-	require.Equal(t, len(oldSPCP.AllowedParams), len(newSPCP.AllowedParams))
+	require.Equal(t, len(oldSPCP.AllowedParams)-14, len(newSPCP.AllowedParams)) // reflects old harvest param keys and other deprecated param key permissions
 	require.Equal(t, len(oldSPCP.AllowedAssetParams), len(newSPCP.AllowedAssetParams))
-	require.Equal(t, len(oldSPCP.AllowedCollateralParams), len(newSPCP.AllowedCollateralParams))
+	require.Equal(t, len(oldSPCP.AllowedCollateralParams)+3, len(newSPCP.AllowedCollateralParams)) // reflects additional cdp collateral types
 	require.Equal(t, len(oldSPCP.AllowedMarkets), len(newSPCP.AllowedMarkets))
 }
 
