@@ -69,4 +69,6 @@ var (
 	ErrExceedsProtocolBorrowableBalance = sdkerrors.Register(ModuleName, 31, "exceeds borrowable module account balance")
 	// ErrReservesExceedCash for when the protocol is insolvent because available reserves exceeds available cash
 	ErrReservesExceedCash = sdkerrors.Register(ModuleName, 32, "insolvency - protocol reserves exceed available cash")
+	// ErrBorrowExceedsAvailableBalance for when a requested borrow exceeds available module acc balances
+	ErrInsufficientDepositBalance = sdkerrors.Register(ModuleName, 33, "requested deposit exceeds account balance")
 )

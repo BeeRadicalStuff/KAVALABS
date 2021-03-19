@@ -44,7 +44,7 @@ func (k Keeper) Deposit(ctx sdk.Context, depositor sdk.AccAddress, coins sdk.Coi
 			for _, coin := range coins {
 				_, isNegative := accCoins.SafeSub(sdk.NewCoins(coin))
 				if isNegative {
-					return sdkerrors.Wrapf(types.ErrBorrowExceedsAvailableBalance,
+					return sdkerrors.Wrapf(types.ErrInsufficientDepositBalance,
 						"insufficient funds: the requested deposit amount of %s exceeds the total available account funds of %s%s",
 						coin, accCoins.AmountOf(coin.Denom), coin.Denom,
 					)
