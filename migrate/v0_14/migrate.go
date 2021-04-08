@@ -326,6 +326,10 @@ func Incentive(hardGS v0_11hard.GenesisState, incentiveGS v0_11incentive.Genesis
 		claimEndMap[cp.ID] = cp.End
 	}
 
+	for _, cp := range incentiveGS.NextClaimPeriodIDs {
+		claimEndMap[cp.ID] = GenesisTime.Add(time.Hour * 24)
+	}
+
 	for _, claim := range incentiveGS.Claims {
 		if claimEndMap[claim.ClaimPeriodID].Before(GenesisTime) {
 			continue
